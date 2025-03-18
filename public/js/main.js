@@ -12,6 +12,8 @@ const projectForm = document.getElementById('projectForm');
 const processCheckboxes = document.getElementById('processCheckboxes');
 const showAllLogsBtn = document.getElementById('show-all-logs');
 const clearConsoleBtn = document.getElementById('clear-console');
+const newProjectBtn = document.getElementById('new-project');
+const saveProjectBtn = document.getElementById('saveProject');
 
 // Global değişkenler
 let selectedProject = null;
@@ -377,6 +379,11 @@ projectForm.addEventListener('submit', saveProject);
 showAllLogsBtn.addEventListener('click', () => showLogs());
 clearConsoleBtn.addEventListener('click', () => {
   consoleOutput.innerHTML = '';
+});
+newProjectBtn.addEventListener('click', newProject);
+saveProjectBtn.addEventListener('click', () => {
+  const event = new Event('submit');
+  projectForm.dispatchEvent(event);
 });
 
 // Başlangıçta verileri yükle
