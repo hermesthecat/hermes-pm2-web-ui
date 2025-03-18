@@ -1,22 +1,58 @@
+/**
+ * PM2 Kütüphane Sarmalayıcı
+ * @author A. Kerem Gök
+ * @description PM2 süreç yöneticisi ile etkileşim için yardımcı sınıf
+ */
+
 import pm2, { Proc, ProcessDescription, StartOptions } from 'pm2';
 import { promisify } from 'util';
 import { EventEmitter } from 'events';
 
+/**
+ * Süreç Log Çıktısı Arayüzü
+ * @interface IProcessOutLog
+ * @description PM2 süreçlerinden gelen log mesajlarının yapısı
+ */
 export interface IProcessOutLog {
+  /** Log mesajının içeriği */
   data: string;
+
+  /** Log mesajının zamanı (timestamp) */
   at: number;
+
+  /** Süreç bilgileri */
   process: {
+    /** Sürecin isim alanı */
     namespace: string;
+
+    /** Süreç revizyonu */
     rev: string;
+
+    /** Süreç adı */
     name: string;
+
+    /** PM2 süreç ID'si */
     pm_id: number;
   };
 }
 
+/**
+ * PM2 Yönetim Sınıfı
+ * @class Pm2Lib
+ * @description PM2 süreçlerinin yönetimi için yardımcı metodlar sağlar
+ */
 class Pm2Lib {
+  /** Süreç betiklerinin bulunduğu dizin yolu */
   private readonly SCRIPT_PATH = process.env.SCRIPT_PATH;
+
+  /** PM2 olay yayıncısı */
   private bus: EventEmitter | undefined;
 
+  /**
+   * Tüm PM2 süreçlerini listeler
+   * @async
+   * @returns {Promise<ProcessDescription[]>} PM2 süreçlerinin listesi
+   */
   async getProcesses(): Promise<ProcessDescription[]> {
     try {
       const list = await promisify<ProcessDescription[]>(pm2.list).call(pm2);
@@ -27,6 +63,12 @@ class Pm2Lib {
     }
   }
 
+  /**
+   * Belirtilen süreci başlatır
+   * @async
+   * @param {string} processName - Başlatılacak sürecin adı
+   * @returns {Promise<Proc>} Başlatılan süreç bilgisi
+   */
   async startProcess(processName: string): Promise<Proc> {
     try {
       const processes = await this.getProcesses();
@@ -44,6 +86,12 @@ class Pm2Lib {
     }
   }
 
+  /**
+   * Belirtilen süreci yeniden başlatır
+   * @async
+   * @param {string} processName - Yeniden başlatılacak sürecin adı
+   * @returns {Promise<Proc>} Yeniden başlatılan süreç bilgisi
+   */
   async restartProcess(processName: string): Promise<Proc> {
     try {
       return promisify(pm2.restart).call(pm2, processName);
@@ -53,6 +101,12 @@ class Pm2Lib {
     }
   }
 
+  /**
+   * Belirtilen süreci durdurur
+   * @async
+   * @param {string} processName - Durdurulacak sürecin adı
+   * @returns {Promise<Proc>} Durdurulan süreç bilgisi
+   */
   async stopProcess(processName: string): Promise<Proc> {
     try {
       return promisify(pm2.stop).call(pm2, processName);
@@ -62,6 +116,12 @@ class Pm2Lib {
     }
   }
 
+  /**
+   * PM2 log olaylarını dinlemeye başlar
+   * @async
+   * @param {Function} onLog - Log olayı gerçekleştiğinde çağrılacak fonksiyon
+   * @description PM2 süreçlerinden gelen tüm logları ve durum değişikliklerini dinler
+   */
   async onLogOut(onLog: (logObj: IProcessOutLog) => void) {
     try {
       if (!this.bus) {
@@ -87,7 +147,7 @@ class Pm2Lib {
         });
       });
 
-      // Process olaylarını dinle
+      // Süreç durum değişikliklerini dinle
       this.bus.on('process:event', (data: any) => {
         if (data && data.process) {
           onLog({
@@ -109,6 +169,13 @@ class Pm2Lib {
     }
   }
 
+  /**
+   * Süreç başlatma seçeneklerini oluşturur
+   * @private
+   * @param {string} processName - Süreç adı
+   * @returns {StartOptions} PM2 başlatma seçenekleri
+   * @description Süreç için gerekli log dosyası yolları ve çalıştırma modunu ayarlar
+   */
   private getStartOptions(processName: string): StartOptions {
     const scriptPath = this.SCRIPT_PATH ? `${this.SCRIPT_PATH}/${processName}` : processName;
     const alias = processName.replace(/\.[^/.]+$/, '');
