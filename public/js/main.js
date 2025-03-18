@@ -1,7 +1,16 @@
-// Socket.IO bağlantısı
+/**
+ * PM2 Web UI Ana JavaScript Dosyası
+ * @author A. Kerem Gök
+ * @description Bu dosya, PM2 süreçlerini yönetmek için gerekli tüm frontend işlevselliğini içerir
+ */
+
+// Socket.IO bağlantısı kurulumu
 const socket = io();
 
-// DOM elementleri
+/**
+ * DOM Elementlerinin Tanımlanması
+ * Bu bölümde, uygulama içinde kullanılacak tüm HTML elementleri seçiliyor
+ */
 const processTable = document.getElementById('tbl-processes');
 const processTableBody = document.querySelector('#tbl-processes tbody');
 const consoleBackground = document.getElementById('console-background');
@@ -17,14 +26,26 @@ const saveProjectBtn = document.getElementById('saveProject');
 const toggleFullscreenBtn = document.getElementById('toggle-fullscreen');
 const mainContent = document.querySelector('main');
 
-// Global değişkenler
-let selectedProject = null;
-let processes = [];
-let projects = [];
-let currentLogProcess = null;
-let isModalOpen = false;
+/**
+ * Global Değişkenler
+ * @description Uygulama genelinde kullanılacak durum değişkenleri
+ */
+let selectedProject = null;  // Seçili projeyi tutar
+let processes = [];         // Tüm PM2 süreçlerini tutar
+let projects = [];         // Tüm projeleri tutar
+let currentLogProcess = null; // Şu anda görüntülenen log sürecini tutar
+let isModalOpen = false;    // Modal penceresinin durumunu tutar
 
-// Process listesini yükle
+/**
+ * Süreç Yönetimi Fonksiyonları
+ * @description PM2 süreçlerinin yüklenmesi ve yönetilmesi için gerekli fonksiyonlar
+ */
+
+/**
+ * Tüm PM2 süreçlerini sunucudan yükler
+ * @async
+ * @returns {Promise<void>}
+ */
 async function loadProcesses() {
   try {
     const response = await fetch('/processes');
@@ -35,7 +56,10 @@ async function loadProcesses() {
   }
 }
 
-// Process listesini güncelle
+/**
+ * Süreç listesini günceller
+ * @param {Array} newProcesses - Yeni süreç listesi
+ */
 function updateProcesses(newProcesses) {
   if (isModalOpen) return; // Modal açıksa güncelleme yapma
 
@@ -43,11 +67,14 @@ function updateProcesses(newProcesses) {
   renderProcessTable();
 }
 
-// Process tablosunu güncelle
+/**
+ * Süreç tablosunu HTML olarak oluşturur ve görüntüler
+ * Önce projesiz süreçleri, sonra proje bazlı süreçleri listeler
+ */
 function renderProcessTable() {
   processTableBody.innerHTML = '';
 
-  // Önce projesiz process'leri ekle
+  // Önce projesiz süreçleri ekle
   const unassignedProcesses = processes.filter(process => {
     return !projects.some(project => project.processes.includes(process.name));
   });
@@ -90,7 +117,10 @@ function renderProcessTable() {
   });
 }
 
-// Process satırı ekle
+/**
+ * Tek bir süreç satırını HTML tablosuna ekler
+ * @param {Object} process - Eklenecek süreç bilgisi
+ */
 function addProcessRow(process) {
   const tr = document.createElement('tr');
   tr.className = 'process-row';
@@ -115,7 +145,15 @@ function addProcessRow(process) {
   processTableBody.appendChild(tr);
 }
 
-// Process başlat
+/**
+ * Süreç Kontrol Fonksiyonları
+ * @description PM2 süreçlerini başlatma, durdurma ve yeniden başlatma işlemleri
+ */
+
+/**
+ * Belirtilen süreci başlatır
+ * @param {string} name - Başlatılacak sürecin adı
+ */
 async function startProcess(name) {
   try {
     await fetch(`/processes/${name}/start`, { method: 'PUT' });
@@ -127,7 +165,10 @@ async function startProcess(name) {
   }
 }
 
-// Process yeniden başlat
+/**
+ * Belirtilen süreci yeniden başlatır
+ * @param {string} name - Yeniden başlatılacak sürecin adı
+ */
 async function restartProcess(name) {
   try {
     await fetch(`/processes/${name}/restart`, { method: 'PUT' });
@@ -139,7 +180,10 @@ async function restartProcess(name) {
   }
 }
 
-// Process durdur
+/**
+ * Belirtilen süreci durdurur
+ * @param {string} name - Durdurulacak sürecin adı
+ */
 async function stopProcess(name) {
   try {
     await fetch(`/processes/${name}/stop`, { method: 'PUT' });
@@ -151,7 +195,15 @@ async function stopProcess(name) {
   }
 }
 
-// Logları göster
+/**
+ * Log Yönetimi Fonksiyonları
+ * @description Süreç loglarının görüntülenmesi ve yönetimi için gerekli fonksiyonlar
+ */
+
+/**
+ * Belirtilen sürecin loglarını görüntüler
+ * @param {string|null} processName - Görüntülenecek sürecin adı, null ise tüm loglar görüntülenir
+ */
 function showLogs(processName = null) {
   // Önceki log dinleyicilerini temizle
   socket.off('log:out');
@@ -160,7 +212,7 @@ function showLogs(processName = null) {
   consoleOutput.innerHTML = '';
   consoleBackground.style.display = 'block';
 
-  // Process adını kaydet
+  // Süreç adını kaydet
   currentLogProcess = processName;
 
   // Log olaylarını dinle
@@ -171,7 +223,10 @@ function showLogs(processName = null) {
   });
 }
 
-// Proje loglarını göster
+/**
+ * Belirli bir projenin tüm süreçlerinin loglarını görüntüler
+ * @param {string|null} projectId - Görüntülenecek projenin ID'si, null ise projesiz süreçlerin logları görüntülenir
+ */
 function showProjectLogs(projectId) {
   // Önceki log dinleyicilerini temizle
   socket.off('log:out');
@@ -180,15 +235,15 @@ function showProjectLogs(projectId) {
   consoleOutput.innerHTML = '';
   consoleBackground.style.display = 'block';
 
-  // Process listesini al
+  // Süreç listesini al
   let projectProcesses;
   if (projectId === null) {
-    // Projesiz process'ler
+    // Projesiz süreçler
     projectProcesses = processes.filter(process => {
       return !projects.some(project => project.processes.includes(process.name));
     }).map(p => p.name);
   } else {
-    // Proje process'leri
+    // Proje süreçleri
     const project = projects.find(p => p.id === projectId);
     projectProcesses = project ? project.processes : [];
   }
@@ -201,7 +256,13 @@ function showProjectLogs(projectId) {
   });
 }
 
-// Log ekle
+/**
+ * Yeni bir log satırı ekler
+ * @param {Object} log - Log verisi
+ * @param {Date} log.at - Logun oluşturulma zamanı
+ * @param {Object} log.process - Süreç bilgisi
+ * @param {string} log.data - Log içeriği
+ */
 function appendLog(log) {
   const p = document.createElement('p');
   p.innerHTML = `
@@ -218,7 +279,15 @@ function appendLog(log) {
   }
 }
 
-// Toast mesajı göster
+/**
+ * Yardımcı Fonksiyonlar
+ */
+
+/**
+ * Bildirim toast mesajı gösterir
+ * @param {string} type - Bildirim tipi ('success' veya 'error')
+ * @param {string} message - Gösterilecek mesaj
+ */
 function showToast(type, message) {
   const toast = document.createElement('div');
   toast.className = `toast align-items-center text-white bg-${type === 'error' ? 'danger' : 'success'} border-0`;
@@ -240,7 +309,51 @@ function showToast(type, message) {
   toast.addEventListener('hidden.bs.toast', () => toast.remove());
 }
 
-// Projeleri yükle
+/**
+ * Süreç checkbox'larını günceller
+ */
+function updateProcessCheckboxes() {
+  processCheckboxes.innerHTML = '';
+  processes.forEach(process => {
+    const li = document.createElement('li');
+    li.className = 'list-group-item';
+    li.innerHTML = `
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" value="${process.name}" 
+               id="process-${process.name}" ${selectedProject?.processes.includes(process.name) ? 'checked' : ''}>
+        <label class="form-check-label" for="process-${process.name}">
+          ${process.name}
+        </label>
+      </div>
+    `;
+    processCheckboxes.appendChild(li);
+  });
+}
+
+/**
+ * Proje seçimini değiştirir
+ * @param {string} projectId - Seçilecek projenin ID'si
+ */
+function selectProject(projectId) {
+  if (selectedProject?.id === projectId) {
+    selectedProject = null;
+  } else {
+    selectedProject = projects.find(p => p.id === projectId);
+  }
+  renderProjectList();
+  renderProcessTable();
+}
+
+/**
+ * Proje Yönetimi Fonksiyonları
+ * @description Projelerin yüklenmesi, oluşturulması, düzenlenmesi ve silinmesi için gerekli fonksiyonlar
+ */
+
+/**
+ * Tüm projeleri sunucudan yükler
+ * @async
+ * @returns {Promise<void>}
+ */
 async function loadProjects() {
   try {
     const response = await fetch('/projects');
@@ -252,7 +365,9 @@ async function loadProjects() {
   }
 }
 
-// Proje listesini güncelle
+/**
+ * Proje listesini HTML olarak oluşturur ve görüntüler
+ */
 function renderProjectList() {
   projectList.innerHTML = '';
   projects.forEach(project => {
@@ -278,37 +393,9 @@ function renderProjectList() {
   });
 }
 
-// Process checkbox'larını güncelle
-function updateProcessCheckboxes() {
-  processCheckboxes.innerHTML = '';
-  processes.forEach(process => {
-    const li = document.createElement('li');
-    li.className = 'list-group-item';
-    li.innerHTML = `
-      <div class="form-check">
-        <input class="form-check-input" type="checkbox" value="${process.name}" 
-               id="process-${process.name}" ${selectedProject?.processes.includes(process.name) ? 'checked' : ''}>
-        <label class="form-check-label" for="process-${process.name}">
-          ${process.name}
-        </label>
-      </div>
-    `;
-    processCheckboxes.appendChild(li);
-  });
-}
-
-// Proje seç
-function selectProject(projectId) {
-  if (selectedProject?.id === projectId) {
-    selectedProject = null;
-  } else {
-    selectedProject = projects.find(p => p.id === projectId);
-  }
-  renderProjectList();
-  renderProcessTable();
-}
-
-// Yeni proje
+/**
+ * Yeni proje oluşturma modalını açar
+ */
 function newProject() {
   selectedProject = null;
   projectForm.reset();
@@ -316,24 +403,14 @@ function newProject() {
   isModalOpen = true;
   projectModal.show();
 
-  // Process listesini güncelle
-  processCheckboxes.innerHTML = '';
-  processes.forEach(process => {
-    const item = document.createElement('div');
-    item.className = 'list-group-item';
-    item.innerHTML = `
-      <div class="form-check">
-        <input class="form-check-input" type="checkbox" value="${process.name}" id="process-${process.name}">
-        <label class="form-check-label" for="process-${process.name}">
-          ${process.name}
-        </label>
-      </div>
-    `;
-    processCheckboxes.appendChild(item);
-  });
+  // Süreç listesini güncelle
+  updateProcessCheckboxes();
 }
 
-// Proje düzenle
+/**
+ * Var olan bir projeyi düzenleme modalını açar
+ * @param {string} projectId - Düzenlenecek projenin ID'si
+ */
 function editProject(projectId) {
   selectedProject = projects.find(p => p.id === projectId);
   if (selectedProject) {
@@ -341,27 +418,14 @@ function editProject(projectId) {
     document.getElementById('projectDescription').value = selectedProject.description || '';
     isModalOpen = true;
     projectModal.show();
-
-    // Process listesini güncelle ve seçili olanları işaretle
-    processCheckboxes.innerHTML = '';
-    processes.forEach(process => {
-      const item = document.createElement('div');
-      item.className = 'list-group-item';
-      item.innerHTML = `
-        <div class="form-check">
-          <input class="form-check-input" type="checkbox" value="${process.name}" id="process-${process.name}"
-            ${selectedProject.processes.includes(process.name) ? 'checked' : ''}>
-          <label class="form-check-label" for="process-${process.name}">
-            ${process.name}
-          </label>
-        </div>
-      `;
-      processCheckboxes.appendChild(item);
-    });
+    updateProcessCheckboxes();
   }
 }
 
-// Proje sil
+/**
+ * Belirtilen projeyi siler
+ * @param {string} projectId - Silinecek projenin ID'si
+ */
 async function deleteProject(projectId) {
   if (confirm('Are you sure you want to delete this project?')) {
     try {
@@ -378,7 +442,10 @@ async function deleteProject(projectId) {
   }
 }
 
-// Proje kaydet
+/**
+ * Proje formunu kaydeder (yeni proje oluşturma veya güncelleme)
+ * @param {Event} event - Form submit olayı
+ */
 async function saveProject(event) {
   event.preventDefault();
 
@@ -391,27 +458,29 @@ async function saveProject(event) {
   try {
     const method = selectedProject ? 'PUT' : 'POST';
     const url = selectedProject ? `/projects/${selectedProject.id}` : '/projects';
-
     const response = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
+      method: method,
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(projectData)
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to save project');
+    if (response.ok) {
+      showToast('success', 'Project saved');
+      loadProjects();
+      renderProcessTable();
+    } else {
+      showToast('error', 'Failed to save project');
     }
-
-    showToast('success', `Project ${selectedProject ? 'updated' : 'created'}`);
-    isModalOpen = false;
-    projectModal.hide();
-    await loadProjects();
-    renderProcessTable();
   } catch (error) {
     console.error('Error saving project:', error);
     showToast('error', 'Failed to save project');
   }
 }
+
+/**
+ * Olay Dinleyicileri ve Başlangıç Ayarları
+ */
 
 // Modal kapatıldığında
 document.getElementById('projectModal').addEventListener('hidden.bs.modal', () => {
@@ -427,7 +496,7 @@ socket.on('disconnect', () => {
   console.log('Disconnected from server');
 });
 
-// Event listeners
+// Buton olay dinleyicileri
 showAllLogsBtn.addEventListener('click', () => showLogs());
 clearConsoleBtn.addEventListener('click', () => {
   consoleOutput.innerHTML = '';
@@ -446,5 +515,5 @@ toggleFullscreenBtn.addEventListener('click', () => {
 loadProcesses();
 loadProjects();
 
-// Her 5 saniyede bir process listesini güncelle
+// Her 5 saniyede bir süreç listesini güncelle
 setInterval(loadProcesses, 5000);
