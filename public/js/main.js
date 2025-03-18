@@ -196,7 +196,12 @@ function appendLog(log) {
     <span>${log.data}</span>
   `;
   consoleOutput.appendChild(p);
-  consoleOutput.scrollTop = consoleOutput.scrollHeight;
+  
+  // En son log'a scroll yap
+  const shouldScroll = consoleOutput.scrollTop + consoleOutput.clientHeight >= consoleOutput.scrollHeight - 50;
+  if (shouldScroll) {
+    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+  }
 }
 
 // Toast mesajı göster

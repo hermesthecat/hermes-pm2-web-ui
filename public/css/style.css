@@ -35,23 +35,50 @@
 
 /* Console Output */
 #console-background {
+  display: none;
   background-color: #1e1e1e;
   border-radius: 4px;
   padding: 1rem;
-  max-height: 500px;
-  overflow-y: auto;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  z-index: 1040;
 }
 
 #console {
+  height: 100%;
+  overflow-y: auto;
   font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   line-height: 1.4;
-  color: #f0f0f0;
+  color: #fff;
+  padding-right: 10px;
 }
 
 #console p {
   margin: 0;
   padding: 2px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#console::-webkit-scrollbar {
+  width: 8px;
+}
+
+#console::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+#console::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+#console::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
 }
 
 .log-timestamp {
@@ -60,8 +87,27 @@
 }
 
 .process-name {
-  color: #4ec9b0;
+  color: #4CAF50;
   margin-right: 8px;
+  font-weight: bold;
+}
+
+.console-controls {
+  position: fixed;
+  bottom: 200px;
+  right: 0;
+  padding: 0.5rem 1rem;
+  background: #1e1e1e;
+  border-top-left-radius: 4px;
+  z-index: 1050;
+}
+
+.console-controls .btn {
+  margin-left: 0.5rem;
+}
+
+main {
+  margin-bottom: 250px;
 }
 
 /* Process Table */
