@@ -98,8 +98,11 @@ function addProcessRow(process) {
     <td class="ps-4">${process.name}</td>
     <td>${process.pm2_env?.status || 'unknown'}</td>
     <td>${process.pm2_env?.pm_uptime ? new Date(process.pm2_env.pm_uptime).toLocaleString() : 'N/A'}</td>
-    <td>${process.monit?.cpu || 0}%</td>
-    <td>${process.monit?.memory ? Math.round(process.monit.memory / (1024 * 1024)) : 0} MB</td>
+    <td>
+      <span>CPU: ${process.monit?.cpu || 0}%</span>
+      <br>
+      <span>Memory: ${process.monit?.memory ? Math.round(process.monit.memory / (1024 * 1024)) : 0}MB</span>
+    </td>
     <td>
       <div class="btn-group" role="group">
         <button class="btn btn-sm btn-success me-1" onclick="startProcess('${process.name}')">Start</button>
