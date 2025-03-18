@@ -22,18 +22,25 @@ let selectedProject = null;
 let processes = [];
 let projects = [];
 let currentLogProcess = null;
+let isModalOpen = false;
 
 // Process listesini yükle
 async function loadProcesses() {
   try {
     const response = await fetch('/processes');
-    processes = await response.json();
-    renderProcessTable();
-    updateProcessCheckboxes();
+    updateProcesses(await response.json());
   } catch (error) {
     console.error('Error loading processes:', error);
     showToast('error', 'Failed to load processes');
   }
+}
+
+// Process listesini güncelle
+function updateProcesses(newProcesses) {
+  if (isModalOpen) return; // Modal açıksa güncelleme yapma
+  
+  processes = newProcesses;
+  renderProcessTable();
 }
 
 // Process tablosunu güncelle
@@ -303,6 +310,7 @@ function newProject() {
   selectedProject = null;
   projectForm.reset();
   document.getElementById('projectId').value = '';
+  isModalOpen = true;
   projectModal.show();
   
   // Process listesini güncelle
@@ -328,8 +336,25 @@ function editProject(projectId) {
   if (selectedProject) {
     document.getElementById('projectName').value = selectedProject.name;
     document.getElementById('projectDescription').value = selectedProject.description || '';
-    updateProcessCheckboxes();
+    isModalOpen = true;
     projectModal.show();
+    
+    // Process listesini güncelle ve seçili olanları işaretle
+    processCheckboxes.innerHTML = '';
+    processes.forEach(process => {
+      const item = document.createElement('div');
+      item.className = 'list-group-item';
+      item.innerHTML = `
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="${process.name}" id="process-${process.name}"
+            ${selectedProject.processes.includes(process.name) ? 'checked' : ''}>
+          <label class="form-check-label" for="process-${process.name}">
+            ${process.name}
+          </label>
+        </div>
+      `;
+      processCheckboxes.appendChild(item);
+    });
   }
 }
 
@@ -360,13 +385,9 @@ async function saveProject(event) {
     processes: Array.from(document.querySelectorAll('#processCheckboxes input:checked')).map(cb => cb.value)
   };
 
-  console.log('Saving project:', projectData);
-
   try {
     const method = selectedProject ? 'PUT' : 'POST';
     const url = selectedProject ? `/projects/${selectedProject.id}` : '/projects';
-    
-    console.log('Request:', method, url);
     
     const response = await fetch(url, {
       method,
@@ -374,23 +395,25 @@ async function saveProject(event) {
       body: JSON.stringify(projectData)
     });
     
-    console.log('Response status:', response.status);
-    const responseData = await response.json();
-    console.log('Response data:', responseData);
-    
     if (!response.ok) {
-      throw new Error(`Failed to save project: ${responseData.message || 'Unknown error'}`);
+      throw new Error('Failed to save project');
     }
 
     showToast('success', `Project ${selectedProject ? 'updated' : 'created'}`);
+    isModalOpen = false;
     projectModal.hide();
     await loadProjects();
     renderProcessTable();
   } catch (error) {
     console.error('Error saving project:', error);
-    showToast('error', error.message || 'Failed to save project');
+    showToast('error', 'Failed to save project');
   }
 }
+
+// Modal kapatıldığında
+document.getElementById('projectModal').addEventListener('hidden.bs.modal', () => {
+  isModalOpen = false;
+});
 
 // Socket.IO bağlantı durumu
 socket.on('connect', () => {
