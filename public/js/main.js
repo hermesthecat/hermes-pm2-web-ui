@@ -206,10 +206,10 @@ function renderProjectList() {
           ${project.name}
         </a>
         <div class="btn-group">
-          <button class="btn btn-sm btn-outline-primary" onclick="editProject('${project.id}')">
+          <button class="btn btn-sm btn-primary" onclick="editProject('${project.id}')">
             <i class="bi bi-pencil"></i>
           </button>
-          <button class="btn btn-sm btn-outline-danger" onclick="deleteProject('${project.id}')">
+          <button class="btn btn-sm btn-danger" onclick="deleteProject('${project.id}')">
             <i class="bi bi-trash"></i>
           </button>
         </div>
@@ -280,7 +280,6 @@ async function deleteProject(projectId) {
       loadProjects();
       renderProcessTable();
     } catch (error) {
-      console.error('Error deleting project:', error);
       showToast('error', 'Failed to delete project');
     }
   }
@@ -315,7 +314,6 @@ async function saveProject(event) {
       throw new Error('Failed to save project');
     }
   } catch (error) {
-    console.error('Error saving project:', error);
     showToast('error', 'Failed to save project');
   }
 }
