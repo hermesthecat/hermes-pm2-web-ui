@@ -10,6 +10,7 @@ class ProcessManager {
   initializeEventListeners() {
     $(document).on('click', 'button[data-action]', (e) => this.handleActionButton(e));
     $('#clear-console').on('click', () => this.clearConsole());
+    $('#show-all-logs').on('click', () => this.showStdLog());
   }
 
   // Start auto-refresh for process status
@@ -141,21 +142,42 @@ class ProcessManager {
   }
 
   // Show process logs
-  showStdLog(process) {
+  showStdLog(process = null) {
     const $console = $('#console');
     $console.empty();
     this.socket.removeAllListeners();
 
-    this.socket.on(`${process}:out_log`, (procLog) => {
+    const logHandler = (procLog) => {
       const timestamp = new Date().toLocaleTimeString();
       $console.append(`
         <p id="console-text">
-          <span class="log-timestamp">[${timestamp}]</span> 
+          <span class="log-timestamp">[${timestamp}]</span>
+          <span class="process-name">[${procLog.process.name}]</span>
           ${this.escapeHtml(procLog.data)}
         </p>
       `);
       this.scrollConsoleToBottom();
-    });
+    };
+
+    if (process) {
+      // Tek process için log dinleme
+      this.socket.on(`${process}:out_log`, logHandler);
+      this.socket.on(`${process}:err_log`, (procLog) => {
+        logHandler({
+          ...procLog,
+          data: `[ERROR] ${procLog.data}`
+        });
+      });
+    } else {
+      // Tüm process'lerin loglarını dinleme
+      this.socket.on('log:out', logHandler);
+      this.socket.on('log:err', (procLog) => {
+        logHandler({
+          ...procLog,
+          data: `[ERROR] ${procLog.data}`
+        });
+      });
+    }
   }
 
   // Clear console output

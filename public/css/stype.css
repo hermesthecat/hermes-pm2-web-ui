@@ -13,6 +13,12 @@
   background-color: rgba(0, 0, 0, 0.02);
 }
 
+.process-name {
+  color: #4a9eff;
+  font-weight: 500;
+  margin-right: 8px;
+}
+
 .btn-group .btn {
   margin: 0 2px;
 }
