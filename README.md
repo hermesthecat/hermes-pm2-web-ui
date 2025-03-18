@@ -20,6 +20,15 @@ PM2 süreç yöneticisi için modern ve kullanıcı dostu web arayüzü.
 - TypeScript
 - Modern bir web tarayıcısı
 
+### Bağımlılıklar
+- Express - Web sunucusu
+- Socket.IO - Gerçek zamanlı iletişim
+- PM2 - Süreç yönetimi
+- UUID - Benzersiz tanımlayıcı üretimi
+- BCrypt - Parola şifreleme
+- JSONWebToken - Kimlik doğrulama token yönetimi
+- Express Rate Limit - API hız sınırlama
+
 ## 🛠️ Kurulum
 
 1. Repoyu klonlayın:
@@ -71,20 +80,32 @@ hermes-pm2-web-ui/
 
 ## 🔧 API Endpoint'leri
 
-### Süreç Yönetimi
+### Kimlik Doğrulama
+- `POST /register` - Yeni kullanıcı kaydı
+- `POST /login` - Kullanıcı girişi
+- `PUT /password` - Parola değiştirme (giriş gerekli)
+- `PUT /admin/user/:id/role` - Kullanıcı rolü güncelleme (admin yetkisi gerekli)
+
+### Süreç Yönetimi (Giriş Gerekli)
 - `GET /processes` - Tüm süreçleri listeler
 - `PUT /processes/:name/:action` - Süreç üzerinde işlem yapar (start/stop/restart)
 
 ### Proje Yönetimi
-- `GET /projects` - Tüm projeleri listeler
-- `GET /projects/:id` - Belirli bir projeyi getirir
-- `POST /projects` - Yeni proje oluşturur
-- `PUT /projects/:id` - Projeyi günceller
-- `DELETE /projects/:id` - Projeyi siler
+- `GET /projects` - Tüm projeleri listeler (giriş gerekli)
+- `GET /projects/:id` - Belirli bir projeyi getirir (giriş gerekli)
+- `POST /projects` - Yeni proje oluşturur (admin yetkisi gerekli)
+- `PUT /projects/:id` - Projeyi günceller (admin yetkisi gerekli)
+- `DELETE /projects/:id` - Projeyi siler (admin yetkisi gerekli)
 
 ### Süreç-Proje İlişkileri
-- `POST /projects/:id/processes/:processName` - Projeye süreç ekler
-- `DELETE /projects/:id/processes/:processName` - Projeden süreç kaldırır
+- `POST /projects/:id/processes/:processName` - Projeye süreç ekler (admin yetkisi gerekli)
+- `DELETE /projects/:id/processes/:processName` - Projeden süreç kaldırır (admin yetkisi gerekli)
+
+### Güvenlik Önlemleri
+- Tüm API istekleri için hız sınırlaması uygulanır (100 istek / 15 dakika)
+- Kimlik doğrulama istekleri için daha sıkı hız sınırlaması (5 deneme / 15 dakika)
+- JWT tabanlı kimlik doğrulama sistemi
+- Admin ve normal kullanıcı rolleri
 
 ## 🔌 WebSocket Olayları
 

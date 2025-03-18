@@ -10,7 +10,12 @@ import { createServer } from 'http';
 import path from 'path';
 import pm2Lib from './pm2Lib';
 import ProjectService from './services/ProjectService';
+import AuthService from './services/AuthService';
 import { CreateProjectDto, UpdateProjectDto } from './models/Project';
+import { CreateUserDto, LoginUserDto, ChangePasswordDto, UserRole } from './models/User';
+import { authenticateToken, requireAdmin } from './middleware/auth';
+import { apiLimiter, authLimiter } from './middleware/rateLimiter';
+
 
 /**
  * Express ve Socket.IO Sunucu Kurulumu
@@ -23,6 +28,74 @@ const io = new Server(server);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
+// Hız sınırlayıcı middleware'i uygula
+app.use(apiLimiter); // Tüm route'lar için genel sınırlayıcı
+
+/**
+ * Kimlik Doğrulama API Endpoint'leri
+ * ------------------------------- */
+
+/**
+ * Yeni kullanıcı kaydı
+ * @route POST /register
+ * @body CreateUserDto - Kullanıcı oluşturma bilgileri
+ */
+app.post('/register', authLimiter, async (req, res) => {
+  try {
+    const dto: CreateUserDto = req.body;
+    const user = await AuthService.registerUser(dto);
+    res.status(201).json(user);
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+/**
+ * Kullanıcı girişi
+ * @route POST /login
+ * @body LoginUserDto - Giriş bilgileri
+ */
+app.post('/login', authLimiter, async (req, res) => {
+  try {
+    const dto: LoginUserDto = req.body;
+    const result = await AuthService.loginUser(dto);
+    res.json(result);
+  } catch (error: any) {
+    res.status(401).json({ message: error.message });
+  }
+});
+
+/**
+ * Parola değiştirme
+ * @route PUT /password
+ * @body ChangePasswordDto - Parola değiştirme bilgileri
+ */
+app.put('/password', authenticateToken, async (req, res) => {
+  try {
+    const dto: ChangePasswordDto = req.body;
+    await AuthService.changePassword(req.user!.userId, dto);
+    res.json({ message: 'Password updated successfully' });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+/**
+ * Kullanıcı rolü güncelleme (sadece admin)
+ * @route PUT /admin/user/:id/role
+ * @param id - Güncellenecek kullanıcı ID'si
+ * @body { role: UserRole } - Yeni rol
+ */
+app.put('/admin/user/:id/role', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { role } = req.body;
+    const user = await AuthService.updateUserRole(req.user!.userId, req.params.id, role);
+    res.json(user);
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
 /**
  * PM2 Süreç Yönetimi API Endpoint'leri
  * ---------------------------------- */
@@ -30,8 +103,9 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 /**
  * Tüm PM2 süreçlerini listeler
  * @route GET /processes
+ * @middleware authenticateToken - Kimlik doğrulama gerekli
  */
-app.get('/processes', async (req, res) => {
+app.get('/processes', authenticateToken, async (req, res) => {
   try {
     const processes = await pm2Lib.getProcesses();
     res.json(processes);
@@ -45,8 +119,9 @@ app.get('/processes', async (req, res) => {
  * @route PUT /processes/:name/:action
  * @param name - Süreç adı
  * @param action - Yapılacak işlem (start, stop, restart)
+ * @middleware authenticateToken, requireAdmin - Kimlik doğrulama ve admin yetkisi gerekli
  */
-app.put('/processes/:name/:action', async (req, res) => {
+app.put('/processes/:name/:action', authenticateToken, requireAdmin, async (req, res) => {
   const { name, action } = req.params;
   try {
     let result;
@@ -76,8 +151,9 @@ app.put('/processes/:name/:action', async (req, res) => {
 /**
  * Tüm projeleri listeler
  * @route GET /projects
+ * @middleware authenticateToken - Kimlik doğrulama gerekli
  */
-app.get('/projects', async (req, res) => {
+app.get('/projects', authenticateToken, async (req, res) => {
   try {
     const projects = await ProjectService.getAllProjects();
     res.json(projects);
@@ -90,8 +166,9 @@ app.get('/projects', async (req, res) => {
  * ID'ye göre proje getirir
  * @route GET /projects/:id
  * @param id - Proje ID'si
+ * @middleware authenticateToken - Kimlik doğrulama gerekli
  */
-app.get('/projects/:id', async (req, res) => {
+app.get('/projects/:id', authenticateToken, async (req, res) => {
   try {
     const project = await ProjectService.getProjectById(req.params.id);
     if (!project) {
@@ -107,8 +184,9 @@ app.get('/projects/:id', async (req, res) => {
  * Yeni proje oluşturur
  * @route POST /projects
  * @body CreateProjectDto - Proje oluşturma bilgileri
+ * @middleware authenticateToken, requireAdmin - Kimlik doğrulama ve admin yetkisi gerekli
  */
-app.post('/projects', async (req, res) => {
+app.post('/projects', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const dto: CreateProjectDto = req.body;
     const project = await ProjectService.createProject(dto);
@@ -123,8 +201,9 @@ app.post('/projects', async (req, res) => {
  * @route PUT /projects/:id
  * @param id - Güncellenecek proje ID'si
  * @body UpdateProjectDto - Proje güncelleme bilgileri
+ * @middleware authenticateToken, requireAdmin - Kimlik doğrulama ve admin yetkisi gerekli
  */
-app.put('/projects/:id', async (req, res) => {
+app.put('/projects/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const dto: UpdateProjectDto = req.body;
     const project = await ProjectService.updateProject(req.params.id, dto);
@@ -141,8 +220,9 @@ app.put('/projects/:id', async (req, res) => {
  * Projeyi siler
  * @route DELETE /projects/:id
  * @param id - Silinecek proje ID'si
+ * @middleware authenticateToken, requireAdmin - Kimlik doğrulama ve admin yetkisi gerekli
  */
-app.delete('/projects/:id', async (req, res) => {
+app.delete('/projects/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const deleted = await ProjectService.deleteProject(req.params.id);
     if (!deleted) {
@@ -163,8 +243,9 @@ app.delete('/projects/:id', async (req, res) => {
  * @route POST /projects/:id/processes/:processName
  * @param id - Proje ID'si
  * @param processName - Eklenecek sürecin adı
+ * @middleware authenticateToken, requireAdmin - Kimlik doğrulama ve admin yetkisi gerekli
  */
-app.post('/projects/:id/processes/:processName', async (req, res) => {
+app.post('/projects/:id/processes/:processName', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const project = await ProjectService.addProcessToProject(req.params.id, req.params.processName);
     if (!project) {
@@ -181,8 +262,9 @@ app.post('/projects/:id/processes/:processName', async (req, res) => {
  * @route DELETE /projects/:id/processes/:processName
  * @param id - Proje ID'si
  * @param processName - Kaldırılacak sürecin adı
+ * @middleware authenticateToken, requireAdmin - Kimlik doğrulama ve admin yetkisi gerekli
  */
-app.delete('/projects/:id/processes/:processName', async (req, res) => {
+app.delete('/projects/:id/processes/:processName', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const project = await ProjectService.removeProcessFromProject(req.params.id, req.params.processName);
     if (!project) {
@@ -223,7 +305,16 @@ io.on('connection', (socket) => {
 /**
  * Sunucu Başlatma
  * -------------- */
+import { initializeApp } from './config/init';
+
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
-  console.log(`[Server] Listening on :${PORT}`);
+
+// Uygulamayı başlat ve sunucuyu dinle
+initializeApp().then(() => {
+  server.listen(PORT, () => {
+    console.log(`[Server] Listening on :${PORT}`);
+  });
+}).catch(error => {
+  console.error('[Server] Initialization failed:', error);
+  process.exit(1);
 });
