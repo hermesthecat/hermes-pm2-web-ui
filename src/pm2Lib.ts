@@ -73,7 +73,6 @@ class Pm2Lib {
       ['log:out', 'log:err'].forEach(event => {
         this.bus?.on(event, (data: any) => {
           if (data && data.process) {
-            console.log(`Received ${event}:`, data.process.name);
             onLog({
               data: event === 'log:err' ? `[ERROR] ${data.data}` : data.data,
               at: Date.now(),
@@ -91,7 +90,6 @@ class Pm2Lib {
       // Process olaylarını dinle
       this.bus.on('process:event', (data: any) => {
         if (data && data.process) {
-          console.log('Process event:', data.event, data.process.name);
           onLog({
             data: `[STATUS] Process ${data.process.name} is ${data.event}`,
             at: Date.now(),

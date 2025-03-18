@@ -129,11 +129,9 @@ app.delete('/projects/:id/processes/:processName', async (req, res) => {
 
 // Socket.IO setup
 io.on('connection', (socket) => {
-  console.log('Client connected');
 
   // Her bağlantı için ayrı log dinleyici oluştur
   const logHandler = (log: any) => {
-    console.log('Sending log:', log.process.name, log.data);
     socket.emit('log:out', log);
   };
 
