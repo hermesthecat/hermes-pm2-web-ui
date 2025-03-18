@@ -14,6 +14,8 @@ const showAllLogsBtn = document.getElementById('show-all-logs');
 const clearConsoleBtn = document.getElementById('clear-console');
 const newProjectBtn = document.getElementById('new-project');
 const saveProjectBtn = document.getElementById('saveProject');
+const toggleFullscreenBtn = document.getElementById('toggle-fullscreen');
+const mainContent = document.querySelector('main');
 
 // Global değişkenler
 let selectedProject = null;
@@ -406,6 +408,13 @@ clearConsoleBtn.addEventListener('click', () => {
 });
 newProjectBtn.addEventListener('click', newProject);
 saveProjectBtn.addEventListener('click', saveProject);
+toggleFullscreenBtn.addEventListener('click', () => {
+  const isFullscreen = consoleBackground.classList.toggle('fullscreen');
+  mainContent.classList.toggle('fullscreen', isFullscreen);
+  document.querySelector('.console-controls').classList.toggle('fullscreen', isFullscreen);
+  toggleFullscreenBtn.querySelector('i').classList.toggle('bi-arrows-fullscreen');
+  toggleFullscreenBtn.querySelector('i').classList.toggle('bi-fullscreen-exit');
+});
 
 // Başlangıçta verileri yükle
 loadProcesses();

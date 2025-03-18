@@ -45,6 +45,12 @@
   right: 0;
   height: 200px;
   z-index: 1040;
+  transition: height 0.3s ease;
+}
+
+#console-background.fullscreen {
+  height: 100vh !important;
+  border-radius: 0;
 }
 
 #console {
@@ -100,6 +106,11 @@
   background: #1e1e1e;
   border-top-left-radius: 4px;
   z-index: 1050;
+  transition: bottom 0.3s ease;
+}
+
+.console-controls.fullscreen {
+  bottom: calc(100vh - 45px);
 }
 
 .console-controls .btn {
@@ -108,6 +119,11 @@
 
 main {
   margin-bottom: 250px;
+  transition: margin-bottom 0.3s ease;
+}
+
+main.fullscreen {
+  margin-bottom: 100vh;
 }
 
 /* Process Table */
