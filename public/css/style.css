@@ -1,39 +1,57 @@
-/* Sidebar */
+/**
+ * Hermes PM2 Web UI Ana CSS Dosyası
+ * @author A. Kerem Gök
+ * @description PM2 web arayüzünün stil tanımlamaları
+ */
+
+/**
+ * Kenar Çubuğu Stilleri
+ * --------------------- */
+/* Ana kenar çubuğu konteyner stili */
 .sidebar {
   min-height: 100vh;
   box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
 }
 
+/* Kenar çubuğu navigasyon bağlantıları */
 .sidebar .nav-link {
   font-weight: 500;
   color: #333;
   cursor: pointer;
 }
 
+/* Fare üzerine geldiğinde arka plan efekti */
 .sidebar .nav-link:hover {
   background-color: rgba(0, 0, 0, .05);
 }
 
+/* Aktif navigasyon bağlantısı stili */
 .sidebar .nav-link.active {
   color: #2470dc;
   background-color: rgba(36, 112, 220, .1);
 }
 
+/* Proje öğesi stili */
 .sidebar .project-item {
   padding: .5rem 1rem;
   margin-bottom: .25rem;
   border-radius: .25rem;
 }
 
+/* Proje öğesi buton grubu varsayılan durumu */
 .sidebar .project-item .btn-group {
   display: none;
 }
 
+/* Fare üzerine geldiğinde buton grubunu göster */
 .sidebar .project-item:hover .btn-group {
   display: flex;
 }
 
-/* Console Output */
+/**
+ * Konsol Çıktı Alanı Stilleri
+ * -------------------------- */
+/* Konsol arka plan konteyner stili */
 #console-background {
   display: none;
   background-color: #1e1e1e;
@@ -48,11 +66,13 @@
   transition: height 0.3s ease;
 }
 
+/* Tam ekran konsol stili */
 #console-background.fullscreen {
   height: 100vh !important;
   border-radius: 0;
 }
 
+/* Konsol içerik alanı stili */
 #console {
   height: 100%;
   overflow-y: auto;
@@ -63,41 +83,58 @@
   padding-right: 10px;
 }
 
+/* Konsol paragraf stili */
 #console p {
   margin: 0;
   padding: 2px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/**
+ * Konsol Kaydırma Çubuğu Stilleri
+ * ------------------------------ */
+/* Kaydırma çubuğu genişliği */
 #console::-webkit-scrollbar {
   width: 8px;
 }
 
+/* Kaydırma çubuğu arka plan stili */
 #console::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
 }
 
+/* Kaydırma çubuğu tutamacı stili */
 #console::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.3);
   border-radius: 4px;
 }
 
+/* Fare üzerindeyken tutamacın stili */
 #console::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.4);
 }
 
+/**
+ * Log ve Zaman Damgası Stilleri
+ * --------------------------- */
+/* Zaman damgası renk ve boşluk ayarı */
 .log-timestamp {
   color: #888;
   margin-right: 8px;
 }
 
+/* Süreç adı stil ayarları */
 .process-name {
   color: #4CAF50;
   margin-right: 8px;
   font-weight: bold;
 }
 
+/**
+ * Konsol Kontrol Butonları Stilleri
+ * ------------------------------- */
+/* Kontrol butonları konteyner stili */
 .console-controls {
   position: fixed;
   bottom: 200px;
@@ -109,72 +146,102 @@
   transition: bottom 0.3s ease;
 }
 
+/* Tam ekran modunda kontrol butonları pozisyonu */
 .console-controls.fullscreen {
   bottom: calc(100vh - 45px);
 }
 
+/* Kontrol butonları arası boşluk */
 .console-controls .btn {
   margin-left: 0.5rem;
 }
 
+/**
+ * Ana İçerik Alanı Stilleri
+ * ----------------------- */
+/* Ana içerik alt boşluk ayarı */
 main {
   margin-bottom: 250px;
   transition: margin-bottom 0.3s ease;
 }
 
+/* Tam ekran modunda ana içerik alt boşluğu */
 main.fullscreen {
   margin-bottom: 100vh;
 }
 
-/* Process Table */
-.table > :not(caption) > * > * {
+/**
+ * Süreç Tablosu Stilleri
+ * -------------------- */
+/* Tablo hücre iç boşluk ayarı */
+.table> :not(caption)>*>* {
   padding: 0.75rem;
 }
 
+/* Proje başlık satırı stili */
 .table .table-info td {
   background-color: #e3f2fd;
   font-weight: 500;
 }
 
+/* Projesiz süreçler başlık satırı stili */
 .table .table-light td {
   background-color: #f8f9fa;
   font-weight: 500;
 }
 
+/* Süreç satırı girinti ayarı */
 .process-row td:first-child {
   padding-left: 2rem !important;
 }
 
-/* Toast Notifications */
+/**
+ * Bildirim Alanı Stilleri
+ * --------------------- */
+/* Bildirim konteyner z-index ayarı */
 .toast-container {
   z-index: 1050;
 }
 
-/* Project Modal */
+/**
+ * Proje Modal Penceresi Stilleri
+ * --------------------------- */
+/* Süreç seçim kutuları konteyner stili */
 #processCheckboxes {
   max-height: 300px;
   overflow-y: auto;
 }
 
+/* Süreç seçim kutusu öğe stili */
 #processCheckboxes .list-group-item {
   cursor: pointer;
 }
 
+/* Fare üzerindeyken seçim kutusu arka planı */
 #processCheckboxes .list-group-item:hover {
   background-color: rgba(0, 0, 0, .05);
 }
 
-/* Utility Classes */
+/**
+ * Yardımcı Sınıf Stilleri
+ * --------------------- */
+/* Tehlike metin rengi */
 .text-danger {
   color: #dc3545 !important;
 }
 
+/* Bilgi metin rengi */
 .text-info {
   color: #0dcaf0 !important;
 }
 
-/* Responsive Design */
+/**
+ * Duyarlı Tasarım Ayarları
+ * ---------------------- */
+/* Tablet ve mobil cihazlar için kenar çubuğu düzenlemesi */
 @media (max-width: 767.98px) {
+
+  /* Mobil kenar çubuğu pozisyonu */
   .sidebar {
     position: fixed;
     top: 0;
@@ -187,6 +254,7 @@ main.fullscreen {
     transition: transform .3s ease-in-out;
   }
 
+  /* Mobilde kenar çubuğu gösterimi */
   .sidebar.show {
     transform: translateX(0);
   }
