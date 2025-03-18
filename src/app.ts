@@ -1,3 +1,9 @@
+/**
+ * Hermes PM2 Web UI Ana Uygulama Dosyası
+ * @author A. Kerem Gök
+ * @description Express sunucusu ve Socket.IO bağlantılarının yönetildiği ana uygulama
+ */
+
 import express from 'express';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
@@ -6,14 +12,25 @@ import pm2Lib from './pm2Lib';
 import ProjectService from './services/ProjectService';
 import { CreateProjectDto, UpdateProjectDto } from './models/Project';
 
+/**
+ * Express ve Socket.IO Sunucu Kurulumu
+ */
 const app = express();
 const server = createServer(app);
 const io = new Server(server);
 
+// Middleware ayarları
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// Process endpoints
+/**
+ * PM2 Süreç Yönetimi API Endpoint'leri
+ * ---------------------------------- */
+
+/**
+ * Tüm PM2 süreçlerini listeler
+ * @route GET /processes
+ */
 app.get('/processes', async (req, res) => {
   try {
     const processes = await pm2Lib.getProcesses();
@@ -23,6 +40,12 @@ app.get('/processes', async (req, res) => {
   }
 });
 
+/**
+ * PM2 süreçleri üzerinde işlem yapar
+ * @route PUT /processes/:name/:action
+ * @param name - Süreç adı
+ * @param action - Yapılacak işlem (start, stop, restart)
+ */
 app.put('/processes/:name/:action', async (req, res) => {
   const { name, action } = req.params;
   try {
@@ -46,7 +69,14 @@ app.put('/processes/:name/:action', async (req, res) => {
   }
 });
 
-// Project endpoints
+/**
+ * Proje Yönetimi API Endpoint'leri
+ * ------------------------------ */
+
+/**
+ * Tüm projeleri listeler
+ * @route GET /projects
+ */
 app.get('/projects', async (req, res) => {
   try {
     const projects = await ProjectService.getAllProjects();
@@ -56,6 +86,11 @@ app.get('/projects', async (req, res) => {
   }
 });
 
+/**
+ * ID'ye göre proje getirir
+ * @route GET /projects/:id
+ * @param id - Proje ID'si
+ */
 app.get('/projects/:id', async (req, res) => {
   try {
     const project = await ProjectService.getProjectById(req.params.id);
@@ -68,6 +103,11 @@ app.get('/projects/:id', async (req, res) => {
   }
 });
 
+/**
+ * Yeni proje oluşturur
+ * @route POST /projects
+ * @body CreateProjectDto - Proje oluşturma bilgileri
+ */
 app.post('/projects', async (req, res) => {
   try {
     const dto: CreateProjectDto = req.body;
@@ -78,6 +118,12 @@ app.post('/projects', async (req, res) => {
   }
 });
 
+/**
+ * Mevcut projeyi günceller
+ * @route PUT /projects/:id
+ * @param id - Güncellenecek proje ID'si
+ * @body UpdateProjectDto - Proje güncelleme bilgileri
+ */
 app.put('/projects/:id', async (req, res) => {
   try {
     const dto: UpdateProjectDto = req.body;
@@ -91,6 +137,11 @@ app.put('/projects/:id', async (req, res) => {
   }
 });
 
+/**
+ * Projeyi siler
+ * @route DELETE /projects/:id
+ * @param id - Silinecek proje ID'si
+ */
 app.delete('/projects/:id', async (req, res) => {
   try {
     const deleted = await ProjectService.deleteProject(req.params.id);
@@ -103,6 +154,16 @@ app.delete('/projects/:id', async (req, res) => {
   }
 });
 
+/**
+ * Proje-Süreç İlişki Yönetimi API Endpoint'leri
+ * ------------------------------------------- */
+
+/**
+ * Projeye yeni süreç ekler
+ * @route POST /projects/:id/processes/:processName
+ * @param id - Proje ID'si
+ * @param processName - Eklenecek sürecin adı
+ */
 app.post('/projects/:id/processes/:processName', async (req, res) => {
   try {
     const project = await ProjectService.addProcessToProject(req.params.id, req.params.processName);
@@ -115,6 +176,12 @@ app.post('/projects/:id/processes/:processName', async (req, res) => {
   }
 });
 
+/**
+ * Projeden süreç kaldırır
+ * @route DELETE /projects/:id/processes/:processName
+ * @param id - Proje ID'si
+ * @param processName - Kaldırılacak sürecin adı
+ */
 app.delete('/projects/:id/processes/:processName', async (req, res) => {
   try {
     const project = await ProjectService.removeProcessFromProject(req.params.id, req.params.processName);
@@ -127,21 +194,35 @@ app.delete('/projects/:id/processes/:processName', async (req, res) => {
   }
 });
 
-// Socket.IO setup
-io.on('connection', (socket) => {
+/**
+ * Socket.IO Gerçek Zamanlı Bağlantı Yönetimi
+ * --------------------------------------- */
 
+/**
+ * Yeni istemci bağlantısı kurulduğunda
+ * @event connection
+ */
+io.on('connection', (socket) => {
   // Her bağlantı için ayrı log dinleyici oluştur
   const logHandler = (log: any) => {
     socket.emit('log:out', log);
   };
 
+  // PM2 log olaylarını dinle
   pm2Lib.onLogOut(logHandler);
 
+  /**
+   * İstemci bağlantısı koptuğunda
+   * @event disconnect
+   */
   socket.on('disconnect', () => {
     console.log('Client disconnected');
   });
 });
 
+/**
+ * Sunucu Başlatma
+ * -------------- */
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`[Server] Listening on :${PORT}`);
