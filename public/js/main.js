@@ -107,10 +107,10 @@ class ProcessManager {
           <td>${process.monit?.memory ? Math.round(process.monit.memory / (1024 * 1024)) : 0} MB</td>
           <td class="text-end">
             <div class="btn-group" role="group">
-              <button class="btn btn-sm btn-success" onclick="startProcess('${process.name}')">Start</button>
-              <button class="btn btn-sm btn-warning" onclick="restartProcess('${process.name}')">Restart</button>
-              <button class="btn btn-sm btn-danger" onclick="stopProcess('${process.name}')">Stop</button>
-              <button class="btn btn-sm btn-info" onclick="showLogs('${process.name}')">Logs</button>
+              <button class="btn btn-sm btn-success me-1" onclick="startProcess('${process.name}')">Start</button>
+              <button class="btn btn-sm btn-warning me-1" onclick="restartProcess('${process.name}')">Restart</button>
+              <button class="btn btn-sm btn-danger me-1" onclick="stopProcess('${process.name}')">Stop</button>
+              <button class="btn btn-sm btn-info me-1" onclick="showLogs('${process.name}')">Logs</button>
             </div>
           </td>
         </tr>
@@ -244,23 +244,23 @@ class ProcessManager {
     
     if (status === 'online') {
       buttons.push(`
-        <button type="button" class="btn btn-sm btn-outline-danger" data-action="stop" title="Stop Process">
+        <button type="button" class="btn btn-sm btn-danger me-1" data-action="stop" title="Stop Process">
           <i class="bi bi-stop-circle me-1"></i>Stop
         </button>
-        <button type="button" class="btn btn-sm btn-outline-info" data-action="tail-log" title="View Logs">
+        <button type="button" class="btn btn-sm btn-info me-1" data-action="tail-log" title="View Logs">
           <i class="bi bi-terminal me-1"></i>Logs
         </button>
       `);
     } else {
       buttons.push(`
-        <button type="button" class="btn btn-sm btn-outline-success" data-action="start" title="Start Process">
+        <button type="button" class="btn btn-sm btn-success me-1" data-action="start" title="Start Process">
           <i class="bi bi-play-circle me-1"></i>Start
         </button>
       `);
     }
 
     buttons.push(`
-      <button type="button" class="btn btn-sm btn-outline-primary" data-action="restart" title="Restart Process">
+      <button type="button" class="btn btn-sm btn-primary me-1" data-action="restart" title="Restart Process">
         <i class="bi bi-arrow-repeat me-1"></i>Restart
       </button>
     `);
