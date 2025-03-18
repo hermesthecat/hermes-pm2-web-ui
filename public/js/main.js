@@ -44,7 +44,12 @@ function renderProcessTable() {
   if (unassignedProcesses.length > 0) {
     processTableBody.innerHTML += `
       <tr class="table-light">
-        <td colspan="6"><strong>Unassigned Processes</strong></td>
+        <td colspan="5"><strong>Unassigned Processes</strong></td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-info" onclick="showProjectLogs(null)">
+            <i class="bi bi-terminal"></i> Logs
+          </button>
+        </td>
       </tr>
     `;
     unassignedProcesses.forEach(process => {
@@ -59,7 +64,12 @@ function renderProcessTable() {
     if (projectProcesses.length > 0) {
       processTableBody.innerHTML += `
         <tr class="table-info">
-          <td colspan="6"><strong>${project.name}</strong></td>
+          <td colspan="5"><strong>${project.name}</strong></td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-info" onclick="showProjectLogs('${project.id}')">
+              <i class="bi bi-terminal"></i> Logs
+            </button>
+          </td>
         </tr>
       `;
       projectProcesses.forEach(process => {
@@ -142,6 +152,36 @@ function showLogs(processName = null) {
   // Log olaylarını dinle
   socket.on('log:out', (log) => {
     if (!currentLogProcess || log.process.name === currentLogProcess) {
+      appendLog(log);
+    }
+  });
+}
+
+// Proje loglarını göster
+function showProjectLogs(projectId) {
+  // Önceki log dinleyicilerini temizle
+  socket.off('log:out');
+  
+  // Console'u temizle ve göster
+  consoleOutput.innerHTML = '';
+  consoleBackground.style.display = 'block';
+  
+  // Process listesini al
+  let projectProcesses;
+  if (projectId === null) {
+    // Projesiz process'ler
+    projectProcesses = processes.filter(process => {
+      return !projects.some(project => project.processes.includes(process.name));
+    }).map(p => p.name);
+  } else {
+    // Proje process'leri
+    const project = projects.find(p => p.id === projectId);
+    projectProcesses = project ? project.processes : [];
+  }
+  
+  // Log olaylarını dinle
+  socket.on('log:out', (log) => {
+    if (projectProcesses.includes(log.process.name)) {
       appendLog(log);
     }
   });
