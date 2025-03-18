@@ -95,7 +95,7 @@ function addProcessRow(process) {
   const tr = document.createElement('tr');
   tr.className = 'process-row';
   tr.innerHTML = `
-    <td class="ps-4">${process.name}</td>
+    <td>${process.name}</td>
     <td>${process.pm2_env?.status || 'unknown'}</td>
     <td>${process.pm2_env?.pm_uptime ? new Date(process.pm2_env.pm_uptime).toLocaleString() : 'N/A'}</td>
     <td>
@@ -103,7 +103,7 @@ function addProcessRow(process) {
       <br>
       <span>Memory: ${process.monit?.memory ? Math.round(process.monit.memory / (1024 * 1024)) : 0}MB</span>
     </td>
-    <td>
+    <td class="text-end">
       <div class="btn-group" role="group">
         <button class="btn btn-sm btn-success me-1" onclick="startProcess('${process.name}')">Start</button>
         <button class="btn btn-sm btn-warning me-1" onclick="restartProcess('${process.name}')">Restart</button>
