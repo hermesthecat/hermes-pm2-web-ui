@@ -4,9 +4,21 @@
     "name": "test",
     "description": "",
     "processes": [
-      "calis_kole"
+      "calis_kole",
+      "calis_kole2"
     ],
     "createdAt": "2025-03-18T10:39:54.992Z",
-    "updatedAt": "2025-03-18T10:40:06.212Z"
+    "updatedAt": "2025-03-18T10:42:40.924Z"
+  },
+  {
+    "id": "fa443401-ab36-42b4-9052-b9556eea2db2",
+    "name": "test2",
+    "description": "",
+    "processes": [
+      "calis_kole3",
+      "calis_kole4"
+    ],
+    "createdAt": "2025-03-18T10:42:37.006Z",
+    "updatedAt": "2025-03-18T10:42:37.006Z"
   }
 ]

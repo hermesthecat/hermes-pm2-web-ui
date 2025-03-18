@@ -19,7 +19,6 @@ class Pm2Lib {
 
   async getProcesses(): Promise<ProcessDescription[]> {
     try {
-      // PM2'deki tüm process'leri al
       const list = await promisify<ProcessDescription[]>(pm2.list).call(pm2);
       return list || [];
     } catch (error) {
@@ -30,15 +29,12 @@ class Pm2Lib {
 
   async startProcess(processName: string): Promise<Proc> {
     try {
-      // Önce process'in var olup olmadığını kontrol et
       const processes = await this.getProcesses();
       const existingProcess = processes.find(p => p.name === processName);
       
       if (existingProcess) {
-        // Process zaten PM2'de kayıtlı, başlat
         return await promisify<string, Proc>(pm2.start).call(pm2, processName);
       } else {
-        // Process PM2'de kayıtlı değil, yeni başlat
         const startOptions = this.getStartOptions(processName);
         return await promisify<StartOptions, Proc>(pm2.start).call(pm2, startOptions);
       }
@@ -70,25 +66,45 @@ class Pm2Lib {
     try {
       if (!this.bus) {
         this.bus = await promisify<EventEmitter>(pm2.launchBus).call(pm2);
+        console.log('PM2 Bus launched');
       }
-      
-      // Tüm process'lerin loglarını dinle
-      this.bus.on('log:out', (procLog: IProcessOutLog) => {
-        onLog(procLog);
-      });
 
-      // Hata loglarını da dinle
-      this.bus.on('log:err', (procLog: IProcessOutLog) => {
-        onLog({
-          ...procLog,
-          data: `[ERROR] ${procLog.data}`
+      // Tüm log olaylarını dinle
+      ['log:out', 'log:err'].forEach(event => {
+        this.bus?.on(event, (data: any) => {
+          if (data && data.process) {
+            console.log(`Received ${event}:`, data.process.name);
+            onLog({
+              data: event === 'log:err' ? `[ERROR] ${data.data}` : data.data,
+              at: Date.now(),
+              process: {
+                namespace: data.process.namespace || '',
+                rev: data.process.rev || '',
+                name: data.process.name || '',
+                pm_id: data.process.pm_id || 0
+              }
+            });
+          }
         });
       });
 
-      // Process durumu değişikliklerini dinle
+      // Process olaylarını dinle
       this.bus.on('process:event', (data: any) => {
-        console.log('Process event:', data);
+        if (data && data.process) {
+          console.log('Process event:', data.event, data.process.name);
+          onLog({
+            data: `[STATUS] Process ${data.process.name} is ${data.event}`,
+            at: Date.now(),
+            process: {
+              namespace: data.process.namespace || '',
+              rev: data.process.rev || '',
+              name: data.process.name || '',
+              pm_id: data.process.pm_id || 0
+            }
+          });
+        }
       });
+
     } catch (error) {
       console.error('Error setting up PM2 bus:', error);
       throw error;
@@ -97,7 +113,7 @@ class Pm2Lib {
 
   private getStartOptions(processName: string): StartOptions {
     const scriptPath = this.SCRIPT_PATH ? `${this.SCRIPT_PATH}/${processName}` : processName;
-    const alias = processName.replace(/\.[^/.]+$/, ''); // Uzantıyı kaldır
+    const alias = processName.replace(/\.[^/.]+$/, '');
 
     return {
       script: scriptPath,
