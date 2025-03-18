@@ -129,14 +129,22 @@ app.delete('/projects/:id/processes/:processName', async (req, res) => {
 
 // Socket.IO setup
 io.on('connection', (socket) => {
-  pm2Lib.onLogOut((log) => {
-    socket.emit(`${log.process.name}:out_log`, log);
+  console.log('Client connected');
+
+  // Her bağlantı için ayrı log dinleyici oluştur
+  const logHandler = (log: any) => {
+    console.log('Sending log:', log.process.name, log.data);
     socket.emit('log:out', log);
+  };
+
+  pm2Lib.onLogOut(logHandler);
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected');
   });
 });
 
 const PORT = process.env.PORT || 3001;
-
 server.listen(PORT, () => {
   console.log(`[Server] Listening on :${PORT}`);
 });

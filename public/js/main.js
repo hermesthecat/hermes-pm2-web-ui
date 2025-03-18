@@ -4,9 +4,13 @@ class ProcessManager {
     this.socket = io();
     this.projectModal = new bootstrap.Modal(document.getElementById('projectModal'));
     this.currentProject = null;
+    this.processes = [];
+    this.projects = [];
+    this.currentLogProcess = null;
     this.initializeEventListeners();
     this.startAutoRefresh();
     this.loadProjects();
+    this.loadProcesses();
   }
 
   // Initialize all event listeners
@@ -14,7 +18,7 @@ class ProcessManager {
     $(document).on('click', 'button[data-action]', (e) => this.handleActionButton(e));
     $('#clear-console').on('click', () => this.clearConsole());
     $('#show-all-logs').on('click', () => this.showStdLog());
-    $('#new-project').on('click', () => this.showProjectModal());
+    $('#new-project').on('click', () => this.newProject());
     $('#saveProject').on('click', () => this.saveProject());
     $(document).on('click', '.project-item', (e) => this.selectProject($(e.currentTarget).data('id')));
     $(document).on('click', '.edit-project', (e) => {
@@ -37,34 +41,99 @@ class ProcessManager {
   async loadProjects() {
     try {
       const response = await fetch('/projects');
-      const projects = await response.json();
-      this.renderProjects(projects);
+      this.projects = await response.json();
+      this.renderProjectList();
     } catch (error) {
       this.showToast('error', 'Failed to load projects');
     }
   }
 
+  // Load all processes
+  async loadProcesses() {
+    try {
+      const response = await fetch('/processes');
+      this.processes = await response.json();
+      this.renderProcessTable();
+      this.updateProcessCheckboxes();
+    } catch (error) {
+      this.showToast('error', 'Failed to load processes');
+    }
+  }
+
   // Render projects in sidebar
-  renderProjects(projects) {
+  renderProjectList() {
     const projectList = $('#project-list');
     projectList.empty();
     
-    projects.forEach(project => {
+    this.projects.forEach(project => {
       projectList.append(`
-        <li class="nav-item">
-          <div class="nav-link project-item d-flex justify-content-between align-items-center" 
+        <li class="nav-item project-item">
+          <div class="nav-link d-flex justify-content-between align-items-center" 
                data-id="${project.id}">
-            <span class="project-name">${project.name}</span>
-            <div class="btn-group btn-group-sm">
-              <button class="btn btn-outline-secondary btn-sm edit-project">
+            <a class="nav-link ${this.currentProject?.id === project.id ? 'active' : ''}" 
+               onclick="selectProject('${project.id}')">
+              ${project.name}
+            </a>
+            <div class="btn-group">
+              <button class="btn btn-sm btn-primary me-1" onclick="editProject('${project.id}')">
                 <i class="bi bi-pencil"></i>
               </button>
-              <button class="btn btn-outline-danger btn-sm delete-project">
+              <button class="btn btn-sm btn-danger me-1" onclick="deleteProject('${project.id}')">
                 <i class="bi bi-trash"></i>
               </button>
             </div>
           </div>
         </li>
+      `);
+    });
+  }
+
+  // Render process table
+  renderProcessTable() {
+    const processTableBody = $('#process-table-body');
+    processTableBody.empty();
+    
+    const filteredProcesses = this.currentProject
+      ? this.processes.filter(p => this.currentProject.processes.includes(p.name))
+      : this.processes;
+
+    filteredProcesses.forEach(process => {
+      processTableBody.append(`
+        <tr id="${process.name}" class="process-row">
+          <td>${process.name}</td>
+          <td>${process.pm2_env?.status || 'unknown'}</td>
+          <td>${process.pm2_env?.pm_uptime ? new Date(process.pm2_env.pm_uptime).toLocaleString() : 'N/A'}</td>
+          <td>${process.monit?.cpu || 0}%</td>
+          <td>${process.monit?.memory ? Math.round(process.monit.memory / (1024 * 1024)) : 0} MB</td>
+          <td class="text-end">
+            <div class="btn-group" role="group">
+              <button class="btn btn-sm btn-success" onclick="startProcess('${process.name}')">Start</button>
+              <button class="btn btn-sm btn-warning" onclick="restartProcess('${process.name}')">Restart</button>
+              <button class="btn btn-sm btn-danger" onclick="stopProcess('${process.name}')">Stop</button>
+              <button class="btn btn-sm btn-info" onclick="showLogs('${process.name}')">Logs</button>
+            </div>
+          </td>
+        </tr>
+      `);
+    });
+  }
+
+  // Update process checkboxes
+  updateProcessCheckboxes() {
+    const processCheckboxes = $('#processCheckboxes');
+    processCheckboxes.empty();
+    
+    this.processes.forEach(process => {
+      processCheckboxes.append(`
+        <label class="list-group-item">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" value="${process.name}" 
+                   id="process-${process.name}" ${this.currentProject?.processes.includes(process.name) ? 'checked' : ''}>
+            <label class="form-check-label" for="process-${process.name}">
+              ${process.name}
+            </label>
+          </div>
+        </label>
       `);
     });
   }
@@ -75,17 +144,6 @@ class ProcessManager {
     modal.find('#projectId').val(project?.id || '');
     modal.find('#projectName').val(project?.name || '');
     modal.find('#projectDescription').val(project?.description || '');
-
-    // Process checkboxes oluştur
-    const processes = await this.getProcesses();
-    const checkboxes = processes.map(proc => `
-      <label class="list-group-item">
-        <input class="form-check-input me-1" type="checkbox" value="${proc.name}"
-          ${project?.processes.includes(proc.name) ? 'checked' : ''}>
-        ${proc.name}
-      </label>
-    `);
-    $('#processCheckboxes').html(checkboxes.join(''));
 
     this.projectModal.show();
   }
@@ -152,19 +210,12 @@ class ProcessManager {
     try {
       if (this.currentProject === projectId) {
         this.currentProject = null;
-        $('.project-item').removeClass('active');
-        await this.updateProcessesStatus(); // Show all processes
-        return;
+      } else {
+        const response = await fetch(`/projects/${projectId}`);
+        this.currentProject = await response.json();
       }
-
-      const response = await fetch(`/projects/${projectId}`);
-      const project = await response.json();
-      
-      this.currentProject = projectId;
-      $('.project-item').removeClass('active');
-      $(`.project-item[data-id="${projectId}"]`).addClass('active');
-      
-      await this.updateProcessesStatus(project.processes);
+      this.renderProjectList();
+      this.renderProcessTable();
     } catch (error) {
       this.showToast('error', 'Failed to load project processes');
     }
@@ -302,50 +353,52 @@ class ProcessManager {
 
   // Show process logs
   showStdLog(process = null) {
-    const $console = $('#console');
-    $console.empty();
-    this.socket.removeAllListeners();
+    // Önceki log dinleyicilerini temizle
+    this.socket.off('log:out');
+    
+    // Console'u temizle ve göster
+    const consoleOutput = $('#console');
+    consoleOutput.empty();
+    const consoleBackground = $('#console-background');
+    consoleBackground.css('display', 'block');
+    
+    // Process adını kaydet
+    this.currentLogProcess = process;
+    
+    console.log('Showing logs for:', process || 'all processes');
+    
+    // Log olaylarını dinle
+    this.socket.on('log:out', (log) => {
+      console.log('Received log:', log);
+      if (!this.currentLogProcess || log.process.name === this.currentLogProcess) {
+        this.appendLog(log);
+      }
+    });
+  }
 
-    const logHandler = (procLog) => {
-      const timestamp = new Date().toLocaleTimeString();
-      const logClass = procLog.data.startsWith('[ERROR]') ? 'text-danger' : 
-                      procLog.data.startsWith('[STATUS]') ? 'text-info' : '';
-      
-      $console.append(`
-        <p id="console-text" class="${logClass}">
-          <span class="log-timestamp">[${timestamp}]</span>
-          <span class="process-name">[${procLog.process.name}]</span>
-          ${this.escapeHtml(procLog.data)}
-        </p>
-      `);
-      this.scrollConsoleToBottom();
-    };
-
-    if (process) {
-      // Tek process için log dinleme
-      this.socket.on('log:*', (procLog) => {
-        if (procLog.process.name === process) {
-          logHandler(procLog);
-        }
-      });
-    } else {
-      // Tüm process'lerin loglarını dinleme
-      this.socket.on('log:*', logHandler);
-    }
-
-    // Process olaylarını dinle
-    this.socket.on('process:*', logHandler);
+  // Log ekle
+  appendLog(log) {
+    const consoleOutput = $('#console');
+    const p = document.createElement('p');
+    p.innerHTML = `
+      <span class="log-timestamp">${new Date(log.at).toLocaleTimeString()}</span>
+      <span class="process-name">${log.process.name}</span>
+      <span>${this.escapeHtml(log.data)}</span>
+    `;
+    consoleOutput.append(p);
+    consoleOutput.scrollTop(consoleOutput[0].scrollHeight);
   }
 
   // Clear console output
   clearConsole() {
-    $('#console').empty();
+    const consoleOutput = $('#console');
+    consoleOutput.empty();
   }
 
   // Scroll console to bottom
   scrollConsoleToBottom() {
-    const $consoleBackground = $('#console-background');
-    $consoleBackground.animate({ scrollTop: $consoleBackground[0].scrollHeight }, 200);
+    const consoleBackground = $('#console-background');
+    consoleBackground.animate({ scrollTop: consoleBackground[0].scrollHeight }, 200);
   }
 
   // Show toast notification
@@ -379,6 +432,132 @@ class ProcessManager {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
+  }
+
+  // Yeni proje modalını aç
+  newProject() {
+    this.currentProject = null;
+    const projectForm = $('#projectForm');
+    projectForm[0].reset();
+    this.updateProcessCheckboxes();
+    this.projectModal.show();
+  }
+
+  // Proje düzenle
+  editProject(projectId) {
+    const project = this.projects.find(p => p.id === projectId);
+    if (project) {
+      const projectName = $('#projectName');
+      projectName.val(project.name);
+      const projectDescription = $('#projectDescription');
+      projectDescription.val(project.description || '');
+      this.updateProcessCheckboxes();
+      this.projectModal.show();
+    }
+  }
+
+  // Proje sil
+  async deleteProject(projectId) {
+    if (!confirm('Are you sure you want to delete this project?')) return;
+
+    try {
+      const response = await fetch(`/projects/${projectId}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete project');
+      
+      if (this.currentProject?.id === projectId) {
+        this.currentProject = null;
+      }
+      this.showToast('success', 'Project deleted');
+      await this.loadProjects();
+      this.renderProcessTable();
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      this.showToast('error', 'Failed to delete project');
+    }
+  }
+
+  // Proje kaydet
+  async saveProject(event) {
+    event.preventDefault();
+    
+    const projectId = $('#projectId').val();
+    const projectData = {
+      name: $('#projectName').val(),
+      description: $('#projectDescription').val(),
+      processes: $('#processCheckboxes input:checked').map(function() {
+        return $(this).val();
+      }).get()
+    };
+    
+    try {
+      const method = projectId ? 'PUT' : 'POST';
+      const url = projectId ? `/projects/${projectId}` : '/projects';
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(projectData)
+      });
+      
+      if (response.ok) {
+        this.showToast('success', `Project ${projectId ? 'updated' : 'created'}`);
+        this.projectModal.hide();
+        await this.loadProjects();
+      } else {
+        throw new Error('Failed to save project');
+      }
+    } catch (error) {
+      console.error('Error saving project:', error);
+      this.showToast('error', 'Failed to save project');
+    }
+  }
+
+  // Proje seç
+  selectProject(projectId) {
+    if (this.currentProject?.id === projectId) {
+      this.currentProject = null;
+    } else {
+      const project = this.projects.find(p => p.id === projectId);
+      this.currentProject = project;
+    }
+    this.renderProjectList();
+    this.renderProcessTable();
+  }
+
+  // Process başlat
+  async startProcess(name) {
+    try {
+      await fetch(`/processes/${name}/start`, { method: 'PUT' });
+      this.showToast('success', `Started process: ${name}`);
+      await this.loadProcesses();
+    } catch (error) {
+      console.error('Error starting process:', error);
+      this.showToast('error', `Failed to start process: ${name}`);
+    }
+  }
+
+  // Process yeniden başlat
+  async restartProcess(name) {
+    try {
+      await fetch(`/processes/${name}/restart`, { method: 'PUT' });
+      this.showToast('success', `Restarted process: ${name}`);
+      await this.loadProcesses();
+    } catch (error) {
+      console.error('Error restarting process:', error);
+      this.showToast('error', `Failed to restart process: ${name}`);
+    }
+  }
+
+  // Process durdur
+  async stopProcess(name) {
+    try {
+      await fetch(`/processes/${name}/stop`, { method: 'PUT' });
+      this.showToast('success', `Stopped process: ${name}`);
+      await this.loadProcesses();
+    } catch (error) {
+      console.error('Error stopping process:', error);
+      this.showToast('error', `Failed to stop process: ${name}`);
+    }
   }
 }
 
