@@ -31,7 +31,7 @@ class Pm2Lib {
     try {
       const processes = await this.getProcesses();
       const existingProcess = processes.find(p => p.name === processName);
-      
+
       if (existingProcess) {
         return await promisify<string, Proc>(pm2.start).call(pm2, processName);
       } else {

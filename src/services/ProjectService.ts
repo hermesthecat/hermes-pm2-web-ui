@@ -17,7 +17,7 @@ class ProjectService {
     try {
       // data klasörünü oluştur
       await fs.mkdir(path.dirname(this.dataFile), { recursive: true });
-      
+
       try {
         const data = await fs.readFile(this.dataFile, 'utf-8');
         const projects = JSON.parse(data) as Project[];

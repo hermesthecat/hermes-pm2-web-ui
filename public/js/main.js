@@ -38,7 +38,7 @@ async function loadProcesses() {
 // Process listesini güncelle
 function updateProcesses(newProcesses) {
   if (isModalOpen) return; // Modal açıksa güncelleme yapma
-  
+
   processes = newProcesses;
   renderProcessTable();
 }
@@ -46,7 +46,7 @@ function updateProcesses(newProcesses) {
 // Process tablosunu güncelle
 function renderProcessTable() {
   processTableBody.innerHTML = '';
-  
+
   // Önce projesiz process'leri ekle
   const unassignedProcesses = processes.filter(process => {
     return !projects.some(project => project.processes.includes(process.name));
@@ -71,7 +71,7 @@ function renderProcessTable() {
   // Sonra her projenin process'lerini ekle
   projects.forEach(project => {
     const projectProcesses = processes.filter(process => project.processes.includes(process.name));
-    
+
     if (projectProcesses.length > 0) {
       processTableBody.innerHTML += `
         <tr class="table-info">
@@ -155,11 +155,11 @@ async function stopProcess(name) {
 function showLogs(processName = null) {
   // Önceki log dinleyicilerini temizle
   socket.off('log:out');
-  
+
   // Console'u temizle ve göster
   consoleOutput.innerHTML = '';
   consoleBackground.style.display = 'block';
-  
+
   // Process adını kaydet
   currentLogProcess = processName;
 
@@ -175,11 +175,11 @@ function showLogs(processName = null) {
 function showProjectLogs(projectId) {
   // Önceki log dinleyicilerini temizle
   socket.off('log:out');
-  
+
   // Console'u temizle ve göster
   consoleOutput.innerHTML = '';
   consoleBackground.style.display = 'block';
-  
+
   // Process listesini al
   let projectProcesses;
   if (projectId === null) {
@@ -192,7 +192,7 @@ function showProjectLogs(projectId) {
     const project = projects.find(p => p.id === projectId);
     projectProcesses = project ? project.processes : [];
   }
-  
+
   // Log olaylarını dinle
   socket.on('log:out', (log) => {
     if (projectProcesses.includes(log.process.name)) {
@@ -210,7 +210,7 @@ function appendLog(log) {
     <span>${log.data}</span>
   `;
   consoleOutput.appendChild(p);
-  
+
   // En son log'a scroll yap
   const shouldScroll = consoleOutput.scrollTop + consoleOutput.clientHeight >= consoleOutput.scrollHeight - 50;
   if (shouldScroll) {
@@ -225,18 +225,18 @@ function showToast(type, message) {
   toast.setAttribute('role', 'alert');
   toast.setAttribute('aria-live', 'assertive');
   toast.setAttribute('aria-atomic', 'true');
-  
+
   toast.innerHTML = `
     <div class="d-flex">
       <div class="toast-body">${message}</div>
       <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
     </div>
   `;
-  
+
   document.querySelector('.toast-container').appendChild(toast);
   const bsToast = new bootstrap.Toast(toast);
   bsToast.show();
-  
+
   toast.addEventListener('hidden.bs.toast', () => toast.remove());
 }
 
@@ -315,7 +315,7 @@ function newProject() {
   document.getElementById('projectId').value = '';
   isModalOpen = true;
   projectModal.show();
-  
+
   // Process listesini güncelle
   processCheckboxes.innerHTML = '';
   processes.forEach(process => {
@@ -341,7 +341,7 @@ function editProject(projectId) {
     document.getElementById('projectDescription').value = selectedProject.description || '';
     isModalOpen = true;
     projectModal.show();
-    
+
     // Process listesini güncelle ve seçili olanları işaretle
     processCheckboxes.innerHTML = '';
     processes.forEach(process => {
@@ -381,7 +381,7 @@ async function deleteProject(projectId) {
 // Proje kaydet
 async function saveProject(event) {
   event.preventDefault();
-  
+
   const projectData = {
     name: document.getElementById('projectName').value,
     description: document.getElementById('projectDescription').value,
@@ -391,13 +391,13 @@ async function saveProject(event) {
   try {
     const method = selectedProject ? 'PUT' : 'POST';
     const url = selectedProject ? `/projects/${selectedProject.id}` : '/projects';
-    
+
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(projectData)
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to save project');
     }
