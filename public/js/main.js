@@ -296,12 +296,28 @@ function selectProject(projectId) {
   renderProcessTable();
 }
 
-// Yeni proje modalını aç
+// Yeni proje
 function newProject() {
   selectedProject = null;
   projectForm.reset();
-  updateProcessCheckboxes();
+  document.getElementById('projectId').value = '';
   projectModal.show();
+  
+  // Process listesini güncelle
+  processCheckboxes.innerHTML = '';
+  processes.forEach(process => {
+    const item = document.createElement('div');
+    item.className = 'list-group-item';
+    item.innerHTML = `
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" value="${process.name}" id="process-${process.name}">
+        <label class="form-check-label" for="process-${process.name}">
+          ${process.name}
+        </label>
+      </div>
+    `;
+    processCheckboxes.appendChild(item);
+  });
 }
 
 // Proje düzenle
@@ -336,16 +352,19 @@ async function deleteProject(projectId) {
 async function saveProject(event) {
   event.preventDefault();
   
-  const formData = new FormData(projectForm);
   const projectData = {
-    name: formData.get('name'),
-    description: formData.get('description'),
+    name: document.getElementById('projectName').value,
+    description: document.getElementById('projectDescription').value,
     processes: Array.from(document.querySelectorAll('#processCheckboxes input:checked')).map(cb => cb.value)
   };
-  
+
+  console.log('Saving project:', projectData);
+
   try {
     const method = selectedProject ? 'PUT' : 'POST';
     const url = selectedProject ? `/projects/${selectedProject.id}` : '/projects';
+    
+    console.log('Request:', method, url);
     
     const response = await fetch(url, {
       method,
@@ -353,15 +372,21 @@ async function saveProject(event) {
       body: JSON.stringify(projectData)
     });
     
-    if (response.ok) {
-      showToast('success', `Project ${selectedProject ? 'updated' : 'created'}`);
-      projectModal.hide();
-      loadProjects();
-    } else {
-      throw new Error('Failed to save project');
+    console.log('Response status:', response.status);
+    const responseData = await response.json();
+    console.log('Response data:', responseData);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to save project: ${responseData.message || 'Unknown error'}`);
     }
+
+    showToast('success', `Project ${selectedProject ? 'updated' : 'created'}`);
+    projectModal.hide();
+    await loadProjects();
+    renderProcessTable();
   } catch (error) {
-    showToast('error', 'Failed to save project');
+    console.error('Error saving project:', error);
+    showToast('error', error.message || 'Failed to save project');
   }
 }
 
@@ -375,16 +400,12 @@ socket.on('disconnect', () => {
 });
 
 // Event listeners
-projectForm.addEventListener('submit', saveProject);
 showAllLogsBtn.addEventListener('click', () => showLogs());
 clearConsoleBtn.addEventListener('click', () => {
   consoleOutput.innerHTML = '';
 });
 newProjectBtn.addEventListener('click', newProject);
-saveProjectBtn.addEventListener('click', () => {
-  const event = new Event('submit');
-  projectForm.dispatchEvent(event);
-});
+saveProjectBtn.addEventListener('click', saveProject);
 
 // Başlangıçta verileri yükle
 loadProcesses();
