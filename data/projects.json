@@ -1,0 +1,12 @@
+[
+  {
+    "id": "593cc654-bb87-4ed8-b3bf-04e5bd8cf32a",
+    "name": "test",
+    "description": "",
+    "processes": [
+      "calis_kole"
+    ],
+    "createdAt": "2025-03-18T10:39:54.992Z",
+    "updatedAt": "2025-03-18T10:40:06.212Z"
+  }
+]
