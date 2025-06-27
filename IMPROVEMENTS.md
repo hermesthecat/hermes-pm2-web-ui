@@ -9,7 +9,6 @@ Bu dosya, projenin işlevselliğini, güvenliğini ve kullanılabilirliğini art
 ## 2. Backend ve Mimari İyileştirmeler
 
 - **Global Hata Yönetimi:** Kod tekrarını önlemek ve hata yönetimini merkezileştirmek için Express'te tüm hataları yakalayan bir "error handling middleware" oluşturun.
-- **Yapılandırma Yönetimi:** Geliştiricilere yol göstermesi için gerekli ortam değişkenlerini içeren bir `.env.example` dosyası oluşturun.
 
 ## 3. Yeni Özellik Fikirleri
 
