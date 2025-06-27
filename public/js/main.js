@@ -33,6 +33,7 @@ const startNewProcessBtn = document.getElementById('startNewProcessBtn');
 const chartModal = new bootstrap.Modal(document.getElementById('chartModal'));
 const chartModalTitle = document.getElementById('chartModalTitle');
 const resourceChartCanvas = document.getElementById('resourceChart');
+const terminalContainer = document.getElementById('terminal-container');
 
 /**
  * Global Değişkenler
@@ -46,6 +47,8 @@ let isModalOpen = false;    // Modal penceresinin durumunu tutar
 let monitoringData = new Map(); // Süreçlerin kaynak kullanım verilerini tutar
 let activeChart = null;       // Aktif grafik nesnesini tutar
 const MAX_DATA_POINTS = 20;   // Grafikte gösterilecek maksimum veri noktası sayısı
+let terminal = null;          // xterm.js terminal nesnesi
+let fitAddon = null;          // xterm.js fit eklentisi
 
 /**
  * Tema Yönetimi Fonksiyonları
@@ -211,6 +214,43 @@ async function performProcessAction(name, action) {
 }
 
 /**
+ * Terminal Yönetimi (xterm.js)
+ * @description Canlı log akışı için terminalin oluşturulması ve yönetimi
+ */
+
+/**
+ * xterm.js terminalini başlatır
+ */
+function initializeTerminal() {
+  // Zaten varsa tekrar oluşturma
+  if (terminal) return;
+
+  terminal = new Terminal({
+    cursorBlink: true,
+    convertEol: true,
+    fontFamily: `'Fira Code', 'Consolas', 'Monaco', monospace`,
+    fontSize: 13,
+    theme: {
+      background: '#1e1e1e',
+      foreground: '#d4d4d4',
+      cursor: '#d4d4d4',
+      selectionBackground: '#525252',
+    }
+  });
+
+  fitAddon = new FitAddon.FitAddon();
+  terminal.loadAddon(fitAddon);
+  terminal.open(terminalContainer);
+  fitAddon.fit();
+
+  window.addEventListener('resize', () => {
+    if (terminalContainer.style.display !== 'none') {
+      fitAddon.fit();
+    }
+  });
+}
+
+/**
  * Log Yönetimi Fonksiyonları
  * @description Süreç loglarının görüntülenmesi ve yönetimi için gerekli fonksiyonlar
  */
@@ -220,22 +260,15 @@ async function performProcessAction(name, action) {
  * @param {string|null} processName - Görüntülenecek sürecin adı, null ise tüm loglar görüntülenir
  */
 function showLogs(processName = null) {
-  // Önceki log dinleyicilerini temizle
-  socket.off('log:out');
-
-  // Console'u temizle ve göster
-  consoleOutput.innerHTML = '';
-  consoleBackground.style.display = 'block';
+  // Terminali göster ve boyutunu ayarla
+  terminalContainer.style.display = 'block';
+  fitAddon.fit();
 
   // Süreç adını kaydet
   currentLogProcess = processName;
 
-  // Log olaylarını dinle
-  socket.on('log:out', (log) => {
-    if (!currentLogProcess || log.process.name === currentLogProcess) {
-      appendLog(log);
-    }
-  });
+  // Terminale hangi logların gösterildiğini yaz
+  terminal.writeln(`\x1b[1;36m--- Listening to logs for: ${processName || 'All Processes'} ---\x1b[0m`);
 }
 
 /**
@@ -243,12 +276,9 @@ function showLogs(processName = null) {
  * @param {string|null} projectId - Görüntülenecek projenin ID'si, null ise projesiz süreçlerin logları görüntülenir
  */
 function showProjectLogs(projectId) {
-  // Önceki log dinleyicilerini temizle
-  socket.off('log:out');
-
-  // Console'u temizle ve göster
-  consoleOutput.innerHTML = '';
-  consoleBackground.style.display = 'block';
+  // Terminali göster ve boyutunu ayarla
+  terminalContainer.style.display = 'block';
+  fitAddon.fit();
 
   // Süreç listesini al
   let projectProcesses;
@@ -263,35 +293,30 @@ function showProjectLogs(projectId) {
     projectProcesses = project ? project.processes : [];
   }
 
-  // Log olaylarını dinle
-  socket.on('log:out', (log) => {
-    if (projectProcesses.includes(log.process.name)) {
-      appendLog(log);
-    }
-  });
+  // Terminale hangi logların gösterildiğini yaz
+  terminal.writeln(`\x1b[1;36m--- Listening to logs for project: ${projectId || 'Unassigned'} ---\x1b[0m`);
+
+  // Log olaylarını dinle (eski dinleyiciyi kaldırmaya gerek yok, filtreleme burada yapılıyor)
+  currentLogProcess = projectProcesses; // Filtreleme için dizi kullan
 }
 
 /**
- * Yeni bir log satırı ekler
- * @param {Object} log - Log verisi
- * @param {Date} log.at - Logun oluşturulma zamanı
- * @param {Object} log.process - Süreç bilgisi
- * @param {string} log.data - Log içeriği
+ * Gelen log verisini xterm.js terminaline yazar
+ * @param {Object} log - Sunucudan gelen log nesnesi
  */
-function appendLog(log) {
-  const p = document.createElement('p');
-  p.innerHTML = `
-    <span class="log-timestamp">${new Date(log.at).toLocaleTimeString()}</span>
-    <span class="process-name">${log.process.name}</span>
-    <span>${log.data}</span>
-  `;
-  consoleOutput.appendChild(p);
+function appendLogToTerminal(log) {
+  let procName = log.process.name || 'system';
+  let procColor = '\x1b[32m'; // Yeşil (varsayılan)
+  let logMessage = log.data.replace(/\r?\n/g, '\r\n'); // Satır sonlarını düzelt
 
-  // En son log'a scroll yap
-  const shouldScroll = consoleOutput.scrollTop + consoleOutput.clientHeight >= consoleOutput.scrollHeight - 50;
-  if (shouldScroll) {
-    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+  if (logMessage.includes('[STATUS]')) {
+    procColor = '\x1b[33m'; // Sarı
+  } else if (logMessage.includes('[ERROR]')) {
+    procColor = '\x1b[31m'; // Kırmızı
   }
+
+  const timestamp = `\x1b[90m${new Date(log.at).toLocaleTimeString()}\x1b[0m`;
+  terminal.writeln(`${timestamp} [${procColor}${procName}\x1b[0m]: ${logMessage}`);
 }
 
 /**
@@ -514,7 +539,9 @@ socket.on('disconnect', () => {
 // Buton olay dinleyicileri
 showAllLogsBtn.addEventListener('click', () => showLogs());
 clearConsoleBtn.addEventListener('click', () => {
-  consoleOutput.innerHTML = '';
+  if (terminal) {
+    terminal.clear();
+  }
 });
 newProjectBtn.addEventListener('click', newProject);
 saveProjectBtn.addEventListener('click', saveProject);
@@ -584,9 +611,9 @@ startNewProcessBtn.addEventListener('click', async () => {
 });
 
 // Konsol arka planına tıklandığında konsolu gizle
-consoleBackground.addEventListener('click', (event) => {
-  if (event.target === consoleBackground) {
-    consoleBackground.style.display = 'none';
+terminalContainer.addEventListener('click', (event) => {
+  if (event.target === terminalContainer) {
+    terminalContainer.style.display = 'none';
   }
 });
 
@@ -712,3 +739,27 @@ document.getElementById('chartModal').addEventListener('hidden.bs.modal', () => 
     activeChart = null;
   }
 });
+
+// Sayfa yüklendiğinde çalışacak fonksiyonlar
+document.addEventListener('DOMContentLoaded', () => {
+  initializeTerminal(); // Terminali başlat
+  applyInitialTheme();
+  loadProjects(); // Projeleri bir kez yükle
+  // Arayüzü normale döndür
+  processTable.style.opacity = '1';
+});
+
+// Sunucudan gelen log olayını dinle ve terminale yaz
+socket.on('log:out', (log) => {
+  // Filtrelemeyi gerçekleştir
+  if (!currentLogProcess) { // Tüm loglar gösteriliyor
+    appendLogToTerminal(log);
+  } else if (Array.isArray(currentLogProcess) && currentLogProcess.includes(log.process.name)) { // Proje logları
+    appendLogToTerminal(log);
+  } else if (typeof currentLogProcess === 'string' && log.process.name === currentLogProcess) { // Tek süreç logu
+    appendLogToTerminal(log);
+  }
+});
+
+// Sunucudan gelen izleme verilerini dinle
+socket.on('processes:monitoring', handleMonitoringUpdate);

@@ -101,14 +101,9 @@ body {
 }
 
 /**
- * Konsol Çıktı Alanı Stilleri
- * -------------------------- */
-/* Konsol arka plan konteyner stili */
-#console-background {
-  display: none;
-  background-color: var(--console-bg);
-  border-radius: 4px;
-  padding: 1rem;
+ * Terminal (xterm.js) Stilleri
+ * ---------------------------- */
+#terminal-container {
   position: fixed;
   bottom: 0;
   left: 0;
@@ -116,71 +111,15 @@ body {
   height: 200px;
   z-index: 1040;
   transition: height 0.3s ease;
+  padding: 0 10px 5px 10px;
+  background-color: #1e1e1e;
+  /* xterm.js temasıyla uyumlu arka plan */
 }
 
-/* Tam ekran konsol stili */
-#console-background.fullscreen {
+#terminal-container.fullscreen {
   height: 100vh !important;
+  padding: 10px;
   border-radius: 0;
-}
-
-/* Konsol içerik alanı stili */
-#console {
-  height: 100%;
-  overflow-y: auto;
-  font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 0.875rem;
-  line-height: 1.4;
-  color: var(--console-text);
-  padding-right: 10px;
-}
-
-/* Konsol paragraf stili */
-#console p {
-  margin: 0;
-  padding: 2px 0;
-  border-bottom: 1px solid var(--console-border);
-}
-
-/**
- * Konsol Kaydırma Çubuğu Stilleri
- * ------------------------------ */
-/* Kaydırma çubuğu genişliği */
-#console::-webkit-scrollbar {
-  width: 8px;
-}
-
-/* Kaydırma çubuğu arka plan stili */
-#console::-webkit-scrollbar-track {
-  background: var(--console-scroll-track);
-  border-radius: 4px;
-}
-
-/* Kaydırma çubuğu tutamacı stili */
-#console::-webkit-scrollbar-thumb {
-  background: var(--console-scroll-thumb);
-  border-radius: 4px;
-}
-
-/* Fare üzerindeyken tutamacın stili */
-#console::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4);
-}
-
-/**
- * Log ve Zaman Damgası Stilleri
- * --------------------------- */
-/* Zaman damgası renk ve boşluk ayarı */
-.log-timestamp {
-  color: #888;
-  margin-right: 8px;
-}
-
-/* Süreç adı stil ayarları */
-.process-name {
-  color: #4CAF50;
-  margin-right: 8px;
-  font-weight: bold;
 }
 
 /**
@@ -192,7 +131,7 @@ body {
   bottom: 200px;
   right: 0;
   padding: 0.5rem 1rem;
-  background: var(--console-bg);
+  background: #1e1e1e;
   border-top-left-radius: 4px;
   z-index: 1050;
   transition: bottom 0.3s ease;
