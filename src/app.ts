@@ -11,6 +11,7 @@ import path from 'path';
 import pm2Lib from './pm2Lib';
 import ProjectService from './services/ProjectService';
 import { CreateProjectDto, UpdateProjectDto } from './models/Project';
+import { StartOptions } from 'pm2';
 
 /**
  * Express ve Socket.IO Sunucu Kurulumu
@@ -66,6 +67,34 @@ app.put('/processes/:name/:action', async (req, res) => {
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: `Failed to ${action} process` });
+  }
+});
+
+/**
+ * Yeni PM2 süreci başlatır
+ * @route POST /processes
+ * @body { name: string, script: string } - Başlatılacak süreç bilgileri
+ */
+app.post('/processes', async (req, res) => {
+  const { name, script } = req.body;
+
+  if (!name || !script) {
+    return res.status(400).json({ message: 'Process name and script path are required' });
+  }
+
+  try {
+    // Arayüzden gelen temel bilgilerle bir başlangıç yapılandırması oluştur
+    const startOptions: StartOptions = {
+      name,
+      script,
+    };
+
+    const proc = await pm2Lib.startProcess(startOptions);
+    // Başarılı olursa, pm2Lib'deki olay dinleyici durumu tüm istemcilere zaten bildirecektir.
+    res.status(201).json(proc);
+  } catch (error: any) {
+    console.error('Failed to start new process:', error);
+    res.status(500).json({ message: error.message || 'Failed to start new process' });
   }
 });
 

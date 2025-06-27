@@ -26,6 +26,10 @@ const saveProjectBtn = document.getElementById('saveProject');
 const toggleFullscreenBtn = document.getElementById('toggle-fullscreen');
 const mainContent = document.querySelector('main');
 const themeSwitchBtn = document.getElementById('theme-switch');
+const newProcessBtn = document.getElementById('new-process-btn');
+const newProcessModal = new bootstrap.Modal(document.getElementById('newProcessModal'));
+const newProcessForm = document.getElementById('newProcessForm');
+const startNewProcessBtn = document.getElementById('startNewProcessBtn');
 
 /**
  * Global Değişkenler
@@ -527,6 +531,45 @@ socket.on('processes:updated', (updatedProcesses) => {
 
 // Tema değiştirme butonu
 themeSwitchBtn.addEventListener('click', toggleTheme);
+
+// "Yeni Süreç" butonu
+newProcessBtn.addEventListener('click', () => {
+  newProcessForm.reset(); // Formu temizle
+  newProcessModal.show();
+});
+
+// "Yeni Süreç" formunu gönderme butonu
+startNewProcessBtn.addEventListener('click', async () => {
+  const nameInput = document.getElementById('processNameInput');
+  const scriptInput = document.getElementById('scriptPathInput');
+  const name = nameInput.value.trim();
+  const script = scriptInput.value.trim();
+
+  if (!name || !script) {
+    showToast('error', 'Process Name and Script Path are required.');
+    return;
+  }
+
+  try {
+    const response = await fetch('/processes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, script }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to start process');
+    }
+
+    showToast('success', `Process '${name}' is starting...`);
+    newProcessModal.hide();
+    // Arayüzün güncellenmesini WebSocket olayı halledecek
+  } catch (error) {
+    console.error('Error starting new process:', error);
+    showToast('error', `Error: ${error.message}`);
+  }
+});
 
 // Konsol arka planına tıklandığında konsolu gizle
 consoleBackground.addEventListener('click', (event) => {

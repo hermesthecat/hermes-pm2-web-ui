@@ -49,6 +49,9 @@
               <i class="bi bi-moon-stars-fill"></i>
               <i class="bi bi-sun-fill"></i>
             </button>
+            <button class="btn btn-sm btn-primary ms-2" id="new-process-btn">
+              <i class="bi bi-plus-circle"></i> New Process
+            </button>
             <div class="refresh-status me-2"></div>
           </div>
         </div>
@@ -126,6 +129,37 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
           <button type="button" class="btn btn-primary" id="saveProject">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Yeni Süreç Modal Penceresi -->
+  <div class="modal fade" id="newProcessModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Start New Process</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="newProcessForm">
+            <div class="mb-3">
+              <label for="processNameInput" class="form-label">Process Name</label>
+              <input type="text" class="form-control" id="processNameInput" name="name" required>
+              <div class="form-text">A unique name for your process (e.g., 'api-server').</div>
+            </div>
+            <div class="mb-3">
+              <label for="scriptPathInput" class="form-label">Script Path</label>
+              <input type="text" class="form-control" id="scriptPathInput" name="script" required>
+              <div class="form-text">The path to the script to run (e.g., 'dist/app.js' or '/var/www/my-app/index.js').
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="startNewProcessBtn">Start Process</button>
         </div>
       </div>
     </div>

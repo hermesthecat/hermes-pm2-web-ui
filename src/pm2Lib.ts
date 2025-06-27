@@ -123,24 +123,34 @@ class Pm2Lib extends EventEmitter {
   }
 
   /**
-   * Belirtilen süreci başlatır
+   * Belirtilen süreci başlatır. Mevcut bir süreç adı veya yeni bir süreç için başlangıç seçenekleri alabilir.
    * @async
-   * @param {string} processName - Başlatılacak sürecin adı
+   * @param {string | StartOptions} processNameOrOptions - Başlatılacak sürecin adı veya başlangıç seçenekleri
    * @returns {Promise<Proc>} Başlatılan süreç bilgisi
    */
-  async startProcess(processName: string): Promise<Proc> {
+  async startProcess(processNameOrOptions: string | StartOptions): Promise<Proc> {
     try {
-      const processes = await this.getProcesses();
-      const existingProcess = processes.find(p => p.name === processName);
+      if (typeof processNameOrOptions === 'string') {
+        const processName = processNameOrOptions;
+        const processes = await this.getProcesses();
+        const existingProcess = processes.find(p => p.name === processName);
 
-      if (existingProcess) {
-        return await promisify<string, Proc>(pm2.start).call(pm2, processName);
+        if (existingProcess) {
+          console.log(`[PM2-Lib] Starting existing process: ${processName}`);
+          return await promisify<string, Proc>(pm2.start).call(pm2, processName);
+        } else {
+          console.log(`[PM2-Lib] Starting new process with default options for: ${processName}`);
+          const startOptions = this.getStartOptions(processName);
+          return await promisify<StartOptions, Proc>(pm2.start).call(pm2, startOptions);
+        }
       } else {
-        const startOptions = this.getStartOptions(processName);
-        return await promisify<StartOptions, Proc>(pm2.start).call(pm2, startOptions);
+        const options = processNameOrOptions;
+        console.log(`[PM2-Lib] Starting new process with provided options: ${options.name}`);
+        return await promisify<StartOptions, Proc>(pm2.start).call(pm2, options);
       }
     } catch (error) {
-      console.error(`Error starting process ${processName}:`, error);
+      const target = typeof processNameOrOptions === 'string' ? processNameOrOptions : processNameOrOptions.name;
+      console.error(`Error starting process ${target}:`, error);
       throw error;
     }
   }
