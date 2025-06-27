@@ -8,8 +8,6 @@ Bu dosya, projenin işlevselliğini, güvenliğini ve kullanılabilirliğini art
 
 ## 2. Backend ve Mimari İyileştirmeler
 
-- **Global Hata Yönetimi:** Kod tekrarını önlemek ve hata yönetimini merkezileştirmek için Express'te tüm hataları yakalayan bir "error handling middleware" oluşturun.
-
 ## 3. Yeni Özellik Fikirleri
 
 - **Geçmiş Logları Görüntüleme:** Kullanıcıların PM2 tarafından oluşturulan eski log dosyalarını (`.log` uzantılı) okuyup arayüzde görüntülemesine olanak tanıyın.

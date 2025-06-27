@@ -58,12 +58,12 @@ app.use('/projects', authMiddleware);
  * Tüm PM2 süreçlerini listeler
  * @route GET /processes
  */
-app.get('/processes', async (req, res) => {
+app.get('/processes', async (req, res, next) => {
   try {
     const processes = await pm2Lib.getProcesses();
     res.json(processes);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to get processes' });
+    next(error);
   }
 });
 
@@ -73,7 +73,7 @@ app.get('/processes', async (req, res) => {
  * @param name - Süreç adı
  * @param action - Yapılacak işlem (start, stop, restart)
  */
-app.put('/processes/:name/:action', async (req, res) => {
+app.put('/processes/:name/:action', async (req, res, next) => {
   const { name, action } = req.params;
   try {
     let result;
@@ -92,7 +92,7 @@ app.put('/processes/:name/:action', async (req, res) => {
     }
     res.json(result);
   } catch (error) {
-    res.status(500).json({ message: `Failed to ${action} process` });
+    next(error);
   }
 });
 
@@ -101,7 +101,7 @@ app.put('/processes/:name/:action', async (req, res) => {
  * @route POST /processes
  * @body { name: string, script: string } - Başlatılacak süreç bilgileri
  */
-app.post('/processes', async (req, res) => {
+app.post('/processes', async (req, res, next) => {
   const { name, script } = req.body;
 
   if (!name || !script) {
@@ -118,9 +118,8 @@ app.post('/processes', async (req, res) => {
     const proc = await pm2Lib.startProcess(startOptions);
     // Başarılı olursa, pm2Lib'deki olay dinleyici durumu tüm istemcilere zaten bildirecektir.
     res.status(201).json(proc);
-  } catch (error: any) {
-    console.error('Failed to start new process:', error);
-    res.status(500).json({ message: error.message || 'Failed to start new process' });
+  } catch (error) {
+    next(error);
   }
 });
 
@@ -132,12 +131,12 @@ app.post('/processes', async (req, res) => {
  * Tüm projeleri listeler
  * @route GET /projects
  */
-app.get('/projects', async (req, res) => {
+app.get('/projects', async (req, res, next) => {
   try {
     const projects = await ProjectService.getAllProjects();
     res.json(projects);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to get projects' });
+    next(error);
   }
 });
 
@@ -146,7 +145,7 @@ app.get('/projects', async (req, res) => {
  * @route GET /projects/:id
  * @param id - Proje ID'si
  */
-app.get('/projects/:id', async (req, res) => {
+app.get('/projects/:id', async (req, res, next) => {
   try {
     const project = await ProjectService.getProjectById(req.params.id);
     if (!project) {
@@ -154,7 +153,7 @@ app.get('/projects/:id', async (req, res) => {
     }
     res.json(project);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to get project' });
+    next(error);
   }
 });
 
@@ -163,13 +162,13 @@ app.get('/projects/:id', async (req, res) => {
  * @route POST /projects
  * @body CreateProjectDto - Proje oluşturma bilgileri
  */
-app.post('/projects', async (req, res) => {
+app.post('/projects', async (req, res, next) => {
   try {
     const dto: CreateProjectDto = req.body;
     const project = await ProjectService.createProject(dto);
     res.status(201).json(project);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to create project' });
+    next(error);
   }
 });
 
@@ -179,7 +178,7 @@ app.post('/projects', async (req, res) => {
  * @param id - Güncellenecek proje ID'si
  * @body UpdateProjectDto - Proje güncelleme bilgileri
  */
-app.put('/projects/:id', async (req, res) => {
+app.put('/projects/:id', async (req, res, next) => {
   try {
     const dto: UpdateProjectDto = req.body;
     const project = await ProjectService.updateProject(req.params.id, dto);
@@ -188,7 +187,7 @@ app.put('/projects/:id', async (req, res) => {
     }
     res.json(project);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update project' });
+    next(error);
   }
 });
 
@@ -197,7 +196,7 @@ app.put('/projects/:id', async (req, res) => {
  * @route DELETE /projects/:id
  * @param id - Silinecek proje ID'si
  */
-app.delete('/projects/:id', async (req, res) => {
+app.delete('/projects/:id', async (req, res, next) => {
   try {
     const deleted = await ProjectService.deleteProject(req.params.id);
     if (!deleted) {
@@ -205,7 +204,7 @@ app.delete('/projects/:id', async (req, res) => {
     }
     res.status(204).send();
   } catch (error) {
-    res.status(500).json({ message: 'Failed to delete project' });
+    next(error);
   }
 });
 
@@ -219,7 +218,7 @@ app.delete('/projects/:id', async (req, res) => {
  * @param id - Proje ID'si
  * @param processName - Eklenecek sürecin adı
  */
-app.post('/projects/:id/processes/:processName', async (req, res) => {
+app.post('/projects/:id/processes/:processName', async (req, res, next) => {
   try {
     const project = await ProjectService.addProcessToProject(req.params.id, req.params.processName);
     if (!project) {
@@ -227,7 +226,7 @@ app.post('/projects/:id/processes/:processName', async (req, res) => {
     }
     res.json(project);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to add process to project' });
+    next(error);
   }
 });
 
@@ -237,7 +236,7 @@ app.post('/projects/:id/processes/:processName', async (req, res) => {
  * @param id - Proje ID'si
  * @param processName - Kaldırılacak sürecin adı
  */
-app.delete('/projects/:id/processes/:processName', async (req, res) => {
+app.delete('/projects/:id/processes/:processName', async (req, res, next) => {
   try {
     const project = await ProjectService.removeProcessFromProject(req.params.id, req.params.processName);
     if (!project) {
@@ -245,7 +244,7 @@ app.delete('/projects/:id/processes/:processName', async (req, res) => {
     }
     res.json(project);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to remove process from project' });
+    next(error);
   }
 });
 
@@ -329,6 +328,23 @@ setInterval(async () => {
     console.error('[Monitoring] Failed to get and broadcast process monitoring data:', error);
   }
 }, MONITORING_INTERVAL);
+
+/**
+ * Global Hata Yönetimi Middleware'i
+ * ---------------------------------
+ */
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('[Global Error Handler]:', err.stack || err);
+
+  const statusCode = err.statusCode || 500;
+  const message = err.message || 'Internal Server Error';
+
+  res.status(statusCode).json({
+    status: 'error',
+    statusCode,
+    message,
+  });
+});
 
 /**
  * Sunucu Başlatma
