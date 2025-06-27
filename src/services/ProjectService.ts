@@ -21,6 +21,12 @@ class ProjectService {
   /** Projelerin bellek içi saklandığı Map veri yapısı */
   private projects: Map<string, Project>;
 
+  /** Dosyaya yazma işlemi için gecikme zamanlayıcısı */
+  private saveTimeout: NodeJS.Timeout | null = null;
+
+  /** Dosyaya yazma gecikmesi (milisaniye) */
+  private readonly SAVE_DELAY = 2000; // 2 saniye
+
   /**
    * ProjectService sınıfının yapıcı metodu
    * @constructor
@@ -64,13 +70,29 @@ class ProjectService {
    * @description Bellek içindeki projeleri JSON formatında dosyaya yazar
    */
   private async saveToFile() {
+    console.log('[ProjectService] Saving projects to file...');
     try {
       const projectsArray = Array.from(this.projects.values());
       await fs.writeFile(this.dataFile, JSON.stringify(projectsArray, null, 2));
+      console.log('[ProjectService] Projects saved successfully.');
     } catch (error) {
       console.error('Error saving projects:', error);
-      throw error;
     }
+  }
+
+  /**
+   * Dosyaya kaydetme işlemini gecikmeli olarak zamanlar (debounce)
+   * @private
+   */
+  private scheduleSave() {
+    // Mevcut bir zamanlayıcı varsa temizle
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+    }
+    // Yeni bir zamanlayıcı ayarla
+    this.saveTimeout = setTimeout(() => {
+      this.saveToFile();
+    }, this.SAVE_DELAY);
   }
 
   /**
@@ -98,7 +120,7 @@ class ProjectService {
    * @param {CreateProjectDto} dto - Yeni proje bilgileri
    * @returns {Promise<Project>} Oluşturulan proje
    */
-  async createProject(dto: CreateProjectDto): Promise<Project> {
+  createProject(dto: CreateProjectDto): Project {
     const project: Project = {
       id: uuidv4(),
       name: dto.name,
@@ -109,7 +131,7 @@ class ProjectService {
     };
 
     this.projects.set(project.id, project);
-    await this.saveToFile();
+    this.scheduleSave();
     return project;
   }
 
@@ -120,7 +142,7 @@ class ProjectService {
    * @param {UpdateProjectDto} dto - Güncellenecek proje bilgileri
    * @returns {Promise<Project | null>} Güncellenmiş proje veya null
    */
-  async updateProject(id: string, dto: UpdateProjectDto): Promise<Project | null> {
+  updateProject(id: string, dto: UpdateProjectDto): Project | null {
     const project = this.projects.get(id);
     if (!project) return null;
 
@@ -133,7 +155,7 @@ class ProjectService {
     };
 
     this.projects.set(id, updatedProject);
-    await this.saveToFile();
+    this.scheduleSave();
     return updatedProject;
   }
 
@@ -143,10 +165,10 @@ class ProjectService {
    * @param {string} id - Silinecek projenin ID'si
    * @returns {Promise<boolean>} Silme işleminin başarılı olup olmadığı
    */
-  async deleteProject(id: string): Promise<boolean> {
+  deleteProject(id: string): boolean {
     const deleted = this.projects.delete(id);
     if (deleted) {
-      await this.saveToFile();
+      this.scheduleSave();
     }
     return deleted;
   }
@@ -158,14 +180,14 @@ class ProjectService {
    * @param {string} processName - Eklenecek sürecin adı
    * @returns {Promise<Project | null>} Güncellenmiş proje veya null
    */
-  async addProcessToProject(projectId: string, processName: string): Promise<Project | null> {
+  addProcessToProject(projectId: string, processName: string): Project | null {
     const project = this.projects.get(projectId);
     if (!project) return null;
 
     if (!project.processes.includes(processName)) {
       project.processes.push(processName);
       project.updatedAt = new Date();
-      await this.saveToFile();
+      this.scheduleSave();
     }
     return project;
   }
@@ -177,13 +199,13 @@ class ProjectService {
    * @param {string} processName - Kaldırılacak sürecin adı
    * @returns {Promise<Project | null>} Güncellenmiş proje veya null
    */
-  async removeProcessFromProject(projectId: string, processName: string): Promise<Project | null> {
+  removeProcessFromProject(projectId: string, processName: string): Project | null {
     const project = this.projects.get(projectId);
     if (!project) return null;
 
     project.processes = project.processes.filter(p => p !== processName);
     project.updatedAt = new Date();
-    await this.saveToFile();
+    this.scheduleSave();
     return project;
   }
 
