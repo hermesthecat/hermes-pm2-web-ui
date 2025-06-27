@@ -25,6 +25,7 @@ const newProjectBtn = document.getElementById('new-project');
 const saveProjectBtn = document.getElementById('saveProject');
 const toggleFullscreenBtn = document.getElementById('toggle-fullscreen');
 const mainContent = document.querySelector('main');
+const themeSwitchBtn = document.getElementById('theme-switch');
 
 /**
  * Global Değişkenler
@@ -35,6 +36,32 @@ let processes = [];         // Tüm PM2 süreçlerini tutar
 let projects = [];         // Tüm projeleri tutar
 let currentLogProcess = null; // Şu anda görüntülenen log sürecini tutar
 let isModalOpen = false;    // Modal penceresinin durumunu tutar
+
+/**
+ * Tema Yönetimi Fonksiyonları
+ * @description Açık ve koyu tema arasında geçişi yönetir
+ */
+
+/**
+ * Kaydedilmiş veya sistem tercihine göre temayı uygular
+ */
+function applyInitialTheme() {
+  const savedTheme = localStorage.getItem('theme');
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+  if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+    document.body.classList.add('dark-mode');
+  }
+}
+
+/**
+ * Temayı değiştirir ve tercihi kaydeder
+ */
+function toggleTheme() {
+  document.body.classList.toggle('dark-mode');
+  const currentTheme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
+  localStorage.setItem('theme', currentTheme);
+}
 
 /**
  * Süreç Yönetimi Fonksiyonları
@@ -517,3 +544,26 @@ loadProjects();
 
 // Her 5 saniyede bir süreç listesini güncelle
 setInterval(loadProcesses, 5000);
+
+// Sayfa yüklendiğinde çalışacak fonksiyonlar
+document.addEventListener('DOMContentLoaded', () => {
+  applyInitialTheme();
+  loadProcesses();
+  loadProjects();
+
+  // Her 5 saniyede bir süreçleri ve projeleri yenile
+  setInterval(() => {
+    loadProcesses();
+    loadProjects();
+  }, 5000);
+});
+
+// Tema değiştirme butonu
+themeSwitchBtn.addEventListener('click', toggleTheme);
+
+// Konsol arka planına tıklandığında konsolu gizle
+consoleBackground.addEventListener('click', (event) => {
+  if (event.target === consoleBackground) {
+    consoleBackground.style.display = 'none';
+  }
+});

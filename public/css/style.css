@@ -5,30 +5,82 @@
  */
 
 /**
+ * Renk Değişkenleri ve Temel Ayarlar
+ * --------------------------------- */
+:root {
+  --background-color: #fff;
+  --text-color: #212529;
+  --sidebar-bg: #fff;
+  --sidebar-shadow: rgba(0, 0, 0, .1);
+  --sidebar-text: #333;
+  --sidebar-hover-bg: rgba(0, 0, 0, .05);
+  --sidebar-active-text: #2470dc;
+  --sidebar-active-bg: rgba(36, 112, 220, .1);
+  --table-project-header-bg: #e3f2fd;
+  --table-unassigned-header-bg: #f8f9fa;
+  --console-bg: #1e1e1e;
+  --console-text: #fff;
+  --console-scroll-track: rgba(255, 255, 255, 0.1);
+  --console-scroll-thumb: rgba(255, 255, 255, 0.3);
+  --console-border: rgba(255, 255, 255, 0.1);
+  --modal-bg: #fff;
+  --modal-header-border: #dee2e6;
+  --bs-body-bg: var(--background-color);
+  --bs-body-color: var(--text-color);
+}
+
+.dark-mode {
+  --background-color: #121212;
+  --text-color: #e0e0e0;
+  --sidebar-bg: #1e1e1e;
+  --sidebar-shadow: rgba(255, 255, 255, .1);
+  --sidebar-text: #e0e0e0;
+  --sidebar-hover-bg: rgba(255, 255, 255, .05);
+  --sidebar-active-text: #58a6ff;
+  --sidebar-active-bg: rgba(88, 166, 255, .1);
+  --table-project-header-bg: #1c2a38;
+  --table-unassigned-header-bg: #22272e;
+  --console-bg: #121212;
+  --console-text: #e0e0e0;
+  --console-scroll-track: rgba(255, 255, 255, 0.1);
+  --console-scroll-thumb: rgba(255, 255, 255, 0.3);
+  --console-border: rgba(255, 255, 255, 0.1);
+  --modal-bg: #2c2c2c;
+  --modal-header-border: #444;
+}
+
+body {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/**
  * Kenar Çubuğu Stilleri
  * --------------------- */
 /* Ana kenar çubuğu konteyner stili */
 .sidebar {
+  background-color: var(--sidebar-bg);
   min-height: 100vh;
-  box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+  box-shadow: inset -1px 0 0 var(--sidebar-shadow);
 }
 
 /* Kenar çubuğu navigasyon bağlantıları */
 .sidebar .nav-link {
   font-weight: 500;
-  color: #333;
+  color: var(--sidebar-text);
   cursor: pointer;
 }
 
 /* Fare üzerine geldiğinde arka plan efekti */
 .sidebar .nav-link:hover {
-  background-color: rgba(0, 0, 0, .05);
+  background-color: var(--sidebar-hover-bg);
 }
 
 /* Aktif navigasyon bağlantısı stili */
 .sidebar .nav-link.active {
-  color: #2470dc;
-  background-color: rgba(36, 112, 220, .1);
+  color: var(--sidebar-active-text);
+  background-color: var(--sidebar-active-bg);
 }
 
 /* Proje öğesi stili */
@@ -54,7 +106,7 @@
 /* Konsol arka plan konteyner stili */
 #console-background {
   display: none;
-  background-color: #1e1e1e;
+  background-color: var(--console-bg);
   border-radius: 4px;
   padding: 1rem;
   position: fixed;
@@ -79,7 +131,7 @@
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 0.875rem;
   line-height: 1.4;
-  color: #fff;
+  color: var(--console-text);
   padding-right: 10px;
 }
 
@@ -87,7 +139,7 @@
 #console p {
   margin: 0;
   padding: 2px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--console-border);
 }
 
 /**
@@ -100,13 +152,13 @@
 
 /* Kaydırma çubuğu arka plan stili */
 #console::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--console-scroll-track);
   border-radius: 4px;
 }
 
 /* Kaydırma çubuğu tutamacı stili */
 #console::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--console-scroll-thumb);
   border-radius: 4px;
 }
 
@@ -140,7 +192,7 @@
   bottom: 200px;
   right: 0;
   padding: 0.5rem 1rem;
-  background: #1e1e1e;
+  background: var(--console-bg);
   border-top-left-radius: 4px;
   z-index: 1050;
   transition: bottom 0.3s ease;
@@ -154,6 +206,29 @@
 /* Kontrol butonları arası boşluk */
 .console-controls .btn {
   margin-left: 0.5rem;
+}
+
+/**
+ * Tema Değiştirme Butonu Stilleri
+ * ----------------------------- */
+.theme-switch {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 1.25rem;
+}
+
+.theme-switch .bi-sun-fill {
+  display: none;
+}
+
+.dark-mode .theme-switch .bi-sun-fill {
+  display: inline-block;
+}
+
+.dark-mode .theme-switch .bi-moon-stars-fill {
+  display: none;
 }
 
 /**
@@ -179,15 +254,19 @@ main.fullscreen {
 }
 
 /* Proje başlık satırı stili */
-.table .table-info td {
-  background-color: #e3f2fd;
+.table .table-info td,
+.dark-mode .table .table-info td {
+  background-color: var(--table-project-header-bg);
   font-weight: 500;
+  color: var(--text-color);
 }
 
 /* Projesiz süreçler başlık satırı stili */
-.table .table-light td {
-  background-color: #f8f9fa;
+.table .table-light td,
+.dark-mode .table .table-light td {
+  background-color: var(--table-unassigned-header-bg);
   font-weight: 500;
+  color: var(--text-color);
 }
 
 /* Süreç satırı girinti ayarı */
@@ -206,6 +285,20 @@ main.fullscreen {
 /**
  * Proje Modal Penceresi Stilleri
  * --------------------------- */
+/* Dark mode için modal stilleri */
+.dark-mode .modal-content {
+  background-color: var(--modal-bg);
+  color: var(--text-color);
+}
+
+.dark-mode .modal-header {
+  border-bottom-color: var(--modal-header-border);
+}
+
+.dark-mode .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
 /* Süreç seçim kutuları konteyner stili */
 #processCheckboxes {
   max-height: 300px;
@@ -215,11 +308,14 @@ main.fullscreen {
 /* Süreç seçim kutusu öğe stili */
 #processCheckboxes .list-group-item {
   cursor: pointer;
+  background-color: transparent;
+  border-color: var(--sidebar-shadow);
+  color: var(--text-color);
 }
 
 /* Fare üzerindeyken seçim kutusu arka planı */
 #processCheckboxes .list-group-item:hover {
-  background-color: rgba(0, 0, 0, .05);
+  background-color: var(--sidebar-hover-bg);
 }
 
 /**
