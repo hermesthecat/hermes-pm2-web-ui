@@ -198,25 +198,41 @@ app.delete('/projects/:id/processes/:processName', async (req, res) => {
  * Socket.IO Gerçek Zamanlı Bağlantı Yönetimi
  * --------------------------------------- */
 
+// PM2 olaylarını dinlemeye başla
+pm2Lib.init();
+
+// Genel süreç durumu değişikliklerini dinle ve tüm istemcilere yayınla
+pm2Lib.on('status_change', async (data) => {
+  console.log(`[Socket.IO] Broadcasting status change for process: ${data.name}, event: ${data.event}`);
+  try {
+    const processes = await pm2Lib.getProcesses();
+    io.emit('processes:updated', processes);
+  } catch (error) {
+    console.error('Failed to get and broadcast process list after status change:', error);
+  }
+});
+
 /**
  * Yeni istemci bağlantısı kurulduğunda
  * @event connection
  */
 io.on('connection', (socket) => {
-  // Her bağlantı için ayrı log dinleyici oluştur
+  console.log(`[Socket.IO] New client connected: ${socket.id}`);
+
+  // Her bağlantı için ayrı log dinleyici oluştur ve sadece o istemciye gönder
   const logHandler = (log: any) => {
     socket.emit('log:out', log);
   };
-
-  // PM2 log olaylarını dinle
-  pm2Lib.onLogOut(logHandler);
+  pm2Lib.on('log', logHandler);
 
   /**
    * İstemci bağlantısı koptuğunda
    * @event disconnect
    */
   socket.on('disconnect', () => {
-    console.log('Client disconnected');
+    console.log(`[Socket.IO] Client disconnected: ${socket.id}`);
+    // İstemciye özel log dinleyicisini kaldır
+    pm2Lib.off('log', logHandler);
   });
 });
 

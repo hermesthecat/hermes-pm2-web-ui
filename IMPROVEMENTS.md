@@ -5,7 +5,6 @@ Bu dosya, projenin işlevselliğini, güvenliğini ve kullanılabilirliğini art
 ## 1. Kullanıcı Arayüzü ve Deneyimi (UI/UX) İyileştirmeleri
 
 - **Modern bir Frontend Framework'e Geçiş:** Mevcut jQuery ve vanilla JavaScript tabanlı arayüzü, bileşen tabanlı bir yapı ve daha iyi durum yönetimi için **React**, **Vue** veya **Svelte** gibi modern bir kütüphaneye taşıyın.
-- **Gerçek Zamanlı Durum Güncellemeleri:** Arka uçtan bir WebSocket olayı (`process:status_changed` gibi) göndererek süreç durumlarının (çalışıyor, durdu vb.) arayüzde anında güncellenmesini sağlayın. Bu, manuel `fetch` çağrılarını ortadan kaldıracaktır.
 - **Gelişmiş Konsol Görüntüleyici:** Mevcut basit `<div>` yerine, gerçek bir terminal deneyimi sunan **[xterm.js](https://xtermjs.org/)** gibi bir kütüphane entegre edin.
 
 ## 2. Backend ve Mimari İyileştirmeler

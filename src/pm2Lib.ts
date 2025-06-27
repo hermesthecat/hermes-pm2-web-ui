@@ -39,14 +39,73 @@ export interface IProcessOutLog {
 /**
  * PM2 Yönetim Sınıfı
  * @class Pm2Lib
- * @description PM2 süreçlerinin yönetimi için yardımcı metodlar sağlar
+ * @description PM2 süreçlerinin yönetimi için yardımcı metodlar sağlar ve olayları yayınlar
  */
-class Pm2Lib {
+class Pm2Lib extends EventEmitter {
   /** Süreç betiklerinin bulunduğu dizin yolu */
   private readonly SCRIPT_PATH = process.env.SCRIPT_PATH;
 
   /** PM2 olay yayıncısı */
   private bus: EventEmitter | undefined;
+
+  /**
+   * PM2 olay veriyolunu başlatır ve olayları dinler
+   * @async
+   */
+  async init() {
+    if (this.bus) {
+      return;
+    }
+
+    try {
+      this.bus = await promisify<EventEmitter>(pm2.launchBus).call(pm2);
+      console.log('[PM2-Lib] PM2 Bus launched successfully.');
+
+      // Tüm log olaylarını dinle ve 'log' olayı olarak yayınla
+      ['log:out', 'log:err'].forEach(event => {
+        this.bus?.on(event, (data: any) => {
+          if (data && data.process) {
+            const logEntry: IProcessOutLog = {
+              data: event === 'log:err' ? `[ERROR] ${data.data}` : data.data,
+              at: Date.now(),
+              process: {
+                namespace: data.process.namespace || '',
+                rev: data.process.rev || '',
+                name: data.process.name || '',
+                pm_id: data.process.pm_id || 0
+              }
+            };
+            this.emit('log', logEntry);
+          }
+        });
+      });
+
+      // Süreç durum değişikliklerini dinle ve 'status_change' olayı olarak yayınla
+      this.bus.on('process:event', (data: any) => {
+        if (data && data.process) {
+          // Durum değişikliğini log olarak da yayınla
+          const logEntry: IProcessOutLog = {
+            data: `[STATUS] Process ${data.process.name} is now ${data.event}`,
+            at: Date.now(),
+            process: {
+              namespace: data.process.namespace || '',
+              rev: data.process.rev || '',
+              name: data.process.name || '',
+              pm_id: data.process.pm_id || 0
+            }
+          };
+          this.emit('log', logEntry);
+
+          // Arayüzü güncellemek için durum değişikliği olayını yayınla
+          this.emit('status_change', { name: data.process.name, event: data.event });
+        }
+      });
+
+    } catch (error) {
+      console.error('[PM2-Lib] Error launching PM2 bus:', error);
+      throw error;
+    }
+  }
 
   /**
    * Tüm PM2 süreçlerini listeler
@@ -112,59 +171,6 @@ class Pm2Lib {
       return promisify(pm2.stop).call(pm2, processName);
     } catch (error) {
       console.error(`Error stopping process ${processName}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * PM2 log olaylarını dinlemeye başlar
-   * @async
-   * @param {Function} onLog - Log olayı gerçekleştiğinde çağrılacak fonksiyon
-   * @description PM2 süreçlerinden gelen tüm logları ve durum değişikliklerini dinler
-   */
-  async onLogOut(onLog: (logObj: IProcessOutLog) => void) {
-    try {
-      if (!this.bus) {
-        this.bus = await promisify<EventEmitter>(pm2.launchBus).call(pm2);
-        console.log('PM2 Bus launched');
-      }
-
-      // Tüm log olaylarını dinle
-      ['log:out', 'log:err'].forEach(event => {
-        this.bus?.on(event, (data: any) => {
-          if (data && data.process) {
-            onLog({
-              data: event === 'log:err' ? `[ERROR] ${data.data}` : data.data,
-              at: Date.now(),
-              process: {
-                namespace: data.process.namespace || '',
-                rev: data.process.rev || '',
-                name: data.process.name || '',
-                pm_id: data.process.pm_id || 0
-              }
-            });
-          }
-        });
-      });
-
-      // Süreç durum değişikliklerini dinle
-      this.bus.on('process:event', (data: any) => {
-        if (data && data.process) {
-          onLog({
-            data: `[STATUS] Process ${data.process.name} is ${data.event}`,
-            at: Date.now(),
-            process: {
-              namespace: data.process.namespace || '',
-              rev: data.process.rev || '',
-              name: data.process.name || '',
-              pm_id: data.process.pm_id || 0
-            }
-          });
-        }
-      });
-
-    } catch (error) {
-      console.error('Error setting up PM2 bus:', error);
       throw error;
     }
   }

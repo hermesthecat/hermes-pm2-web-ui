@@ -162,9 +162,9 @@ function addProcessRow(process) {
     </td>
     <td class="text-end">
       <div class="btn-group" role="group">
-        <button class="btn btn-sm btn-success me-1" onclick="startProcess('${process.name}')">Start</button>
-        <button class="btn btn-sm btn-warning me-1" onclick="restartProcess('${process.name}')">Restart</button>
-        <button class="btn btn-sm btn-danger me-1" onclick="stopProcess('${process.name}')">Stop</button>
+        <button class="btn btn-sm btn-success me-1" onclick="performProcessAction('${process.name}', 'start')">Start</button>
+        <button class="btn btn-sm btn-warning me-1" onclick="performProcessAction('${process.name}', 'restart')">Restart</button>
+        <button class="btn btn-sm btn-danger me-1" onclick="performProcessAction('${process.name}', 'stop')">Stop</button>
         <button class="btn btn-sm btn-info me-1" onclick="showLogs('${process.name}')">Logs</button>
       </div>
     </td>
@@ -178,47 +178,22 @@ function addProcessRow(process) {
  */
 
 /**
- * Belirtilen süreci başlatır
- * @param {string} name - Başlatılacak sürecin adı
+ * Belirtilen süreç üzerinde bir eylem gerçekleştirir
+ * @param {string} name - Üzerinde işlem yapılacak sürecin adı
+ * @param {'start'|'stop'|'restart'} action - Yapılacak eylem
  */
-async function startProcess(name) {
+async function performProcessAction(name, action) {
+  // Arayüzde anında geri bildirim için tabloyu soluklaştır
+  processTable.style.opacity = '0.5';
   try {
-    await fetch(`/processes/${name}/start`, { method: 'PUT' });
-    showToast('success', `Started process: ${name}`);
-    loadProcesses();
+    await fetch(`/processes/${name}/${action}`, { method: 'PUT' });
+    showToast('success', `Action '${action}' sent for process: ${name}`);
+    // Artık loadProcesses() çağrısına gerek yok, sunucu güncelleme gönderecek.
   } catch (error) {
-    console.error('Error starting process:', error);
-    showToast('error', `Failed to start process: ${name}`);
-  }
-}
-
-/**
- * Belirtilen süreci yeniden başlatır
- * @param {string} name - Yeniden başlatılacak sürecin adı
- */
-async function restartProcess(name) {
-  try {
-    await fetch(`/processes/${name}/restart`, { method: 'PUT' });
-    showToast('success', `Restarted process: ${name}`);
-    loadProcesses();
-  } catch (error) {
-    console.error('Error restarting process:', error);
-    showToast('error', `Failed to restart process: ${name}`);
-  }
-}
-
-/**
- * Belirtilen süreci durdurur
- * @param {string} name - Durdurulacak sürecin adı
- */
-async function stopProcess(name) {
-  try {
-    await fetch(`/processes/${name}/stop`, { method: 'PUT' });
-    showToast('success', `Stopped process: ${name}`);
-    loadProcesses();
-  } catch (error) {
-    console.error('Error stopping process:', error);
-    showToast('error', `Failed to stop process: ${name}`);
+    console.error(`Error performing action ${action} on process:`, error);
+    showToast('error', `Failed to ${action} process: ${name}`);
+    // Hata durumunda tabloyu normale döndür
+    processTable.style.opacity = '1';
   }
 }
 
@@ -539,23 +514,15 @@ toggleFullscreenBtn.addEventListener('click', () => {
 });
 
 // Başlangıçta verileri yükle
-loadProcesses();
 loadProjects();
+loadProcesses();
 
-// Her 5 saniyede bir süreç listesini güncelle
-setInterval(loadProcesses, 5000);
-
-// Sayfa yüklendiğinde çalışacak fonksiyonlar
-document.addEventListener('DOMContentLoaded', () => {
-  applyInitialTheme();
-  loadProcesses();
-  loadProjects();
-
-  // Her 5 saniyede bir süreçleri ve projeleri yenile
-  setInterval(() => {
-    loadProcesses();
-    loadProjects();
-  }, 5000);
+// Sunucudan gelen süreç güncelleme olayını dinle
+socket.on('processes:updated', (updatedProcesses) => {
+  console.log('Received process update from server.');
+  updateProcesses(updatedProcesses);
+  // Arayüzü normale döndür
+  processTable.style.opacity = '1';
 });
 
 // Tema değiştirme butonu
