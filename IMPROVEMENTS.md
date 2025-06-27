@@ -17,7 +17,6 @@ Bu dosya, projenin işlevselliğini, güvenliğini ve kullanılabilirliğini art
 
 - **Geçmiş Logları Görüntüleme:** Kullanıcıların PM2 tarafından oluşturulan eski log dosyalarını (`.log` uzantılı) okuyup arayüzde görüntülemesine olanak tanıyın.
 - **Bildirim Sistemi:** Bir süreç çöktüğünde (`stopped` veya `errored`), e-posta, Slack veya Discord Webhook aracılığıyla bildirim gönderen bir sistem entegre edin.
-- **Kaynak Kullanımı Grafikleri:** Süreçlerin CPU ve bellek kullanım verilerini periyodik olarak kaydedip, **Chart.js** gibi bir kütüphane ile zaman içindeki değişimini gösteren grafiklerle görselleştirin.
 
 ## 4. Test ve Dağıtım (Deployment)
 

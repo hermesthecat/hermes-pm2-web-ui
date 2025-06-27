@@ -266,6 +266,29 @@ io.on('connection', (socket) => {
 });
 
 /**
+ * Periyodik Kaynak İzleme
+ * ------------------------- */
+const MONITORING_INTERVAL = 3000; // 3 saniye
+
+setInterval(async () => {
+  try {
+    const processes = await pm2Lib.getProcesses();
+    // Sadece gerekli verileri göndererek ağ trafiğini azalt
+    const monitoringData = processes.map(p => ({
+      name: p.name,
+      pm_id: p.pm_id,
+      monit: {
+        cpu: p.monit?.cpu || 0,
+        memory: p.monit?.memory || 0,
+      },
+    }));
+    io.emit('processes:monitoring', monitoringData);
+  } catch (error) {
+    console.error('[Monitoring] Failed to get and broadcast process monitoring data:', error);
+  }
+}, MONITORING_INTERVAL);
+
+/**
  * Sunucu Başlatma
  * -------------- */
 const PORT = process.env.PORT || 3001;

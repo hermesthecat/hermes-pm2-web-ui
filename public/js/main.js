@@ -30,6 +30,9 @@ const newProcessBtn = document.getElementById('new-process-btn');
 const newProcessModal = new bootstrap.Modal(document.getElementById('newProcessModal'));
 const newProcessForm = document.getElementById('newProcessForm');
 const startNewProcessBtn = document.getElementById('startNewProcessBtn');
+const chartModal = new bootstrap.Modal(document.getElementById('chartModal'));
+const chartModalTitle = document.getElementById('chartModalTitle');
+const resourceChartCanvas = document.getElementById('resourceChart');
 
 /**
  * Global Değişkenler
@@ -40,6 +43,9 @@ let processes = [];         // Tüm PM2 süreçlerini tutar
 let projects = [];         // Tüm projeleri tutar
 let currentLogProcess = null; // Şu anda görüntülenen log sürecini tutar
 let isModalOpen = false;    // Modal penceresinin durumunu tutar
+let monitoringData = new Map(); // Süreçlerin kaynak kullanım verilerini tutar
+let activeChart = null;       // Aktif grafik nesnesini tutar
+const MAX_DATA_POINTS = 20;   // Grafikte gösterilecek maksimum veri noktası sayısı
 
 /**
  * Tema Yönetimi Fonksiyonları
@@ -162,7 +168,7 @@ function addProcessRow(process) {
     <td>
       <span>CPU: ${process.monit?.cpu || 0}%</span>
       <br>
-      <span>Memory: ${process.monit?.memory ? Math.round(process.monit.memory / (1024 * 1024)) : 0}MB</span>
+      <span>Memory: ${process.monit?.memory ? (process.monit.memory / (1024 * 1024)).toFixed(2) : 0}MB</span>
     </td>
     <td class="text-end">
       <div class="btn-group" role="group">
@@ -170,6 +176,9 @@ function addProcessRow(process) {
         <button class="btn btn-sm btn-warning me-1" onclick="performProcessAction('${process.name}', 'restart')">Restart</button>
         <button class="btn btn-sm btn-danger me-1" onclick="performProcessAction('${process.name}', 'stop')">Stop</button>
         <button class="btn btn-sm btn-info me-1" onclick="showLogs('${process.name}')">Logs</button>
+        <button class="btn btn-sm btn-secondary" onclick="showResourceGraph('${process.name}')">
+          <i class="bi bi-graph-up"></i>
+        </button>
       </div>
     </td>
   `;
@@ -529,6 +538,9 @@ socket.on('processes:updated', (updatedProcesses) => {
   processTable.style.opacity = '1';
 });
 
+// Sunucudan gelen izleme verilerini dinle
+socket.on('processes:monitoring', handleMonitoringUpdate);
+
 // Tema değiştirme butonu
 themeSwitchBtn.addEventListener('click', toggleTheme);
 
@@ -575,5 +587,128 @@ startNewProcessBtn.addEventListener('click', async () => {
 consoleBackground.addEventListener('click', (event) => {
   if (event.target === consoleBackground) {
     consoleBackground.style.display = 'none';
+  }
+});
+
+/**
+ * Grafik Yönetimi Fonksiyonları
+ * @description Kaynak kullanımı grafiklerinin yönetimi
+ */
+
+/**
+ * Belirtilen süreç için kaynak kullanım grafiğini gösterir
+ * @param {string} processName - Grafiği gösterilecek sürecin adı
+ */
+function showResourceGraph(processName) {
+  chartModalTitle.textContent = `Resource Usage for ${processName}`;
+
+  if (activeChart) {
+    activeChart.destroy();
+  }
+
+  const processData = monitoringData.get(processName) || { labels: [], cpu: [], memory: [] };
+
+  activeChart = new Chart(resourceChartCanvas, {
+    type: 'line',
+    data: {
+      labels: processData.labels,
+      datasets: [
+        {
+          label: 'CPU Usage (%)',
+          data: processData.cpu,
+          borderColor: 'rgba(54, 162, 235, 1)',
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          yAxisID: 'y',
+          tension: 0.2,
+        },
+        {
+          label: 'Memory Usage (MB)',
+          data: processData.memory,
+          borderColor: 'rgba(255, 99, 132, 1)',
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          yAxisID: 'y1',
+          tension: 0.2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          ticks: { display: false }
+        },
+        y: {
+          type: 'linear',
+          display: true,
+          position: 'left',
+          title: {
+            display: true,
+            text: 'CPU (%)'
+          }
+        },
+        y1: {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          title: {
+            display: true,
+            text: 'Memory (MB)'
+          },
+          grid: {
+            drawOnChartArea: false, // only show the grid for the primary axis
+          },
+        },
+      },
+      animation: {
+        duration: 200
+      }
+    }
+  });
+
+  chartModal.show();
+}
+
+/**
+ * Gelen izleme verilerini işler ve saklar
+ * @param {Array} data - Sunucudan gelen izleme verileri dizisi
+ */
+function handleMonitoringUpdate(data) {
+  const now = new Date();
+  const timestamp = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+
+  data.forEach(p => {
+    if (!monitoringData.has(p.name)) {
+      monitoringData.set(p.name, { labels: [], cpu: [], memory: [] });
+    }
+    const processData = monitoringData.get(p.name);
+
+    // Veri ekle
+    processData.labels.push(timestamp);
+    processData.cpu.push(p.monit.cpu);
+    processData.memory.push((p.monit.memory / (1024 * 1024)).toFixed(2));
+
+    // Maksimum veri noktasını aşarsa en eski veriyi sil
+    if (processData.labels.length > MAX_DATA_POINTS) {
+      processData.labels.shift();
+      processData.cpu.shift();
+      processData.memory.shift();
+    }
+
+    // Grafik açıksa ve bu sürece aitse, grafiği güncelle
+    if (activeChart && chartModalTitle.textContent.includes(p.name)) {
+      activeChart.data.labels = processData.labels;
+      activeChart.data.datasets[0].data = processData.cpu;
+      activeChart.data.datasets[1].data = processData.memory;
+      activeChart.update();
+    }
+  });
+}
+
+// Grafik modalı kapandığında grafiği yok et
+document.getElementById('chartModal').addEventListener('hidden.bs.modal', () => {
+  if (activeChart) {
+    activeChart.destroy();
+    activeChart = null;
   }
 });
