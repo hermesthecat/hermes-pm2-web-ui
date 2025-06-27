@@ -76,7 +76,7 @@ Uygulamayı başlatırken ortam değişkenleri (`environment variables`) kullana
 
 ## 🗂️ Proje Yapısı
 
-```
+```bash
 hermes-pm2-web-ui/
 ├── data/               # Proje tanımlarını içeren `projects.json` dosyası burada saklanır.
 ├── public/             # İstemci tarafı dosyaları (HTML, CSS, JS).
