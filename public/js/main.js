@@ -4,8 +4,11 @@
  * @description Bu dosya, PM2 süreçlerini yönetmek için gerekli tüm frontend işlevselliğini içerir
  */
 
-// Socket.IO bağlantısı kurulumu
-const socket = io();
+// Socket.IO bağlantısı kurulumu - Global ama başlangıçta bağlanmıyor
+let socket = null;
+
+// API Anahtarı
+let apiKey = localStorage.getItem('hermes-api-key') || null;
 
 /**
  * DOM Elementlerinin Tanımlanması
@@ -34,6 +37,10 @@ const chartModal = new bootstrap.Modal(document.getElementById('chartModal'));
 const chartModalTitle = document.getElementById('chartModalTitle');
 const resourceChartCanvas = document.getElementById('resourceChart');
 const terminalContainer = document.getElementById('terminal-container');
+const authOverlay = document.getElementById('auth-overlay');
+const apiKeyInput = document.getElementById('apiKeyInput');
+const authSubmitBtn = document.getElementById('auth-submit-btn');
+const authError = document.getElementById('auth-error');
 
 /**
  * Global Değişkenler
@@ -49,6 +56,81 @@ let activeChart = null;       // Aktif grafik nesnesini tutar
 const MAX_DATA_POINTS = 20;   // Grafikte gösterilecek maksimum veri noktası sayısı
 let terminal = null;          // xterm.js terminal nesnesi
 let fitAddon = null;          // xterm.js fit eklentisi
+
+/**
+ * Kimlik Doğrulama Fonksiyonları
+ */
+
+/**
+ * fetch API için kimlik doğrulama başlığını ekleyen sarmalayıcı
+ * @param {string} url - İstek yapılacak URL
+ * @param {object} options - Fetch seçenekleri
+ * @returns {Promise<Response>}
+ */
+function fetchWithAuth(url, options = {}) {
+  const headers = {
+    ...options.headers,
+    'X-API-Key': apiKey,
+  };
+  return fetch(url, { ...options, headers });
+}
+
+/**
+ * Uygulamayı başlatır (Socket bağlantısı ve veri yükleme)
+ */
+function initializeApp() {
+  // Socket.IO bağlantısını kimlik doğrulaması ile başlat
+  socket = io({
+    auth: { apiKey }
+  });
+
+  // Socket bağlantı hatasını dinle
+  socket.on('connect_error', (err) => {
+    console.error('Socket connection error:', err.message);
+    // Anahtar yanlışsa, girişe geri dön
+    if (err.message.includes('Unauthorized')) {
+      logout();
+    }
+  });
+
+  // Olay dinleyicilerini ayarla
+  socket.on('processes:updated', (updatedProcesses) => {
+    console.log('Received process update from server.');
+    updateProcesses(updatedProcesses);
+    processTable.style.opacity = '1';
+  });
+
+  socket.on('processes:monitoring', handleMonitoringUpdate);
+
+  socket.on('log:out', (log) => {
+    if (!currentLogProcess) {
+      appendLogToTerminal(log);
+    } else if (Array.isArray(currentLogProcess) && currentLogProcess.includes(log.process.name)) {
+      appendLogToTerminal(log);
+    } else if (typeof currentLogProcess === 'string' && log.process.name === currentLogProcess) {
+      appendLogToTerminal(log);
+    }
+  });
+
+  // İlk verileri yükle
+  loadProjects();
+  loadProcesses();
+
+  // Giriş ekranını gizle
+  authOverlay.classList.add('hidden');
+}
+
+/**
+ * Oturumu kapatır, anahtarı temizler ve giriş ekranını gösterir
+ */
+function logout() {
+  localStorage.removeItem('hermes-api-key');
+  apiKey = null;
+  if (socket) socket.disconnect();
+  authError.classList.add('d-none');
+  apiKeyInput.value = '';
+  authOverlay.classList.remove('hidden');
+}
 
 /**
  * Tema Yönetimi Fonksiyonları
@@ -88,7 +170,8 @@ function toggleTheme() {
  */
 async function loadProcesses() {
   try {
-    const response = await fetch('/processes');
+    const response = await fetchWithAuth('/processes');
+    if (!response.ok) throw new Error('Failed to fetch processes');
     updateProcesses(await response.json());
   } catch (error) {
     console.error('Error loading processes:', error);
@@ -202,7 +285,7 @@ async function performProcessAction(name, action) {
   // Arayüzde anında geri bildirim için tabloyu soluklaştır
   processTable.style.opacity = '0.5';
   try {
-    await fetch(`/processes/${name}/${action}`, { method: 'PUT' });
+    await fetchWithAuth(`/processes/${name}/${action}`, { method: 'PUT' });
     showToast('success', `Action '${action}' sent for process: ${name}`);
     // Artık loadProcesses() çağrısına gerek yok, sunucu güncelleme gönderecek.
   } catch (error) {
@@ -396,9 +479,11 @@ function selectProject(projectId) {
  */
 async function loadProjects() {
   try {
-    const response = await fetch('/projects');
+    const response = await fetchWithAuth('/projects');
+    if (!response.ok) throw new Error('Failed to fetch projects');
     projects = await response.json();
     renderProjectList();
+    updateProcessCheckboxes();
   } catch (error) {
     console.error('Error loading projects:', error);
     showToast('error', 'Failed to load projects');
@@ -469,7 +554,7 @@ function editProject(projectId) {
 async function deleteProject(projectId) {
   if (confirm('Are you sure you want to delete this project?')) {
     try {
-      await fetch(`/projects/${projectId}`, { method: 'DELETE' });
+      await fetchWithAuth(`/projects/${projectId}`, { method: 'DELETE' });
       if (selectedProject?.id === projectId) {
         selectedProject = null;
       }
@@ -495,23 +580,20 @@ async function saveProject(event) {
     processes: Array.from(document.querySelectorAll('#processCheckboxes input:checked')).map(cb => cb.value)
   };
 
+  const projectId = document.getElementById('projectId').value;
+  const url = projectId ? `/projects/${projectId}` : '/projects';
+  const method = projectId ? 'PUT' : 'POST';
+
   try {
-    const method = selectedProject ? 'PUT' : 'POST';
-    const url = selectedProject ? `/projects/${selectedProject.id}` : '/projects';
-    const response = await fetch(url, {
-      method: method,
-      headers: {
-        'Content-Type': 'application/json'
-      },
+    const response = await fetchWithAuth(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(projectData)
     });
-    if (response.ok) {
-      showToast('success', 'Project saved');
-      loadProjects();
-      renderProcessTable();
-    } else {
-      showToast('error', 'Failed to save project');
-    }
+    if (!response.ok) throw new Error('Failed to save project');
+    await loadProjects();
+    projectModal.hide();
+    showToast('success', `Project successfully saved!`);
   } catch (error) {
     console.error('Error saving project:', error);
     showToast('error', 'Failed to save project');
@@ -578,37 +660,7 @@ newProcessBtn.addEventListener('click', () => {
 });
 
 // "Yeni Süreç" formunu gönderme butonu
-startNewProcessBtn.addEventListener('click', async () => {
-  const nameInput = document.getElementById('processNameInput');
-  const scriptInput = document.getElementById('scriptPathInput');
-  const name = nameInput.value.trim();
-  const script = scriptInput.value.trim();
-
-  if (!name || !script) {
-    showToast('error', 'Process Name and Script Path are required.');
-    return;
-  }
-
-  try {
-    const response = await fetch('/processes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, script }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to start process');
-    }
-
-    showToast('success', `Process '${name}' is starting...`);
-    newProcessModal.hide();
-    // Arayüzün güncellenmesini WebSocket olayı halledecek
-  } catch (error) {
-    console.error('Error starting new process:', error);
-    showToast('error', `Error: ${error.message}`);
-  }
-});
+startNewProcessBtn.addEventListener('click', startNewProcessBtnHandler);
 
 // Konsol arka planına tıklandığında konsolu gizle
 terminalContainer.addEventListener('click', (event) => {
@@ -744,22 +796,50 @@ document.getElementById('chartModal').addEventListener('hidden.bs.modal', () => 
 document.addEventListener('DOMContentLoaded', () => {
   initializeTerminal(); // Terminali başlat
   applyInitialTheme();
-  loadProjects(); // Projeleri bir kez yükle
-  // Arayüzü normale döndür
-  processTable.style.opacity = '1';
-});
 
-// Sunucudan gelen log olayını dinle ve terminale yaz
-socket.on('log:out', (log) => {
-  // Filtrelemeyi gerçekleştir
-  if (!currentLogProcess) { // Tüm loglar gösteriliyor
-    appendLogToTerminal(log);
-  } else if (Array.isArray(currentLogProcess) && currentLogProcess.includes(log.process.name)) { // Proje logları
-    appendLogToTerminal(log);
-  } else if (typeof currentLogProcess === 'string' && log.process.name === currentLogProcess) { // Tek süreç logu
-    appendLogToTerminal(log);
+  if (apiKey) {
+    initializeApp();
   }
 });
 
-// Sunucudan gelen izleme verilerini dinle
-socket.on('processes:monitoring', handleMonitoringUpdate);
+authSubmitBtn.addEventListener('click', () => {
+  const key = apiKeyInput.value.trim();
+  if (!key) return;
+
+  apiKey = key;
+  localStorage.setItem('hermes-api-key', key);
+  authError.classList.add('d-none');
+  initializeApp();
+});
+
+async function startNewProcessBtnHandler() {
+  const nameInput = document.getElementById('processNameInput');
+  const scriptInput = document.getElementById('scriptPathInput');
+  const name = nameInput.value.trim();
+  const script = scriptInput.value.trim();
+
+  if (!name || !script) {
+    showToast('error', 'Process Name and Script Path are required.');
+    return;
+  }
+
+  try {
+    const response = await fetchWithAuth('/processes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, script }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to start process');
+    }
+
+    showToast('success', `Process '${name}' is starting...`);
+    newProcessModal.hide();
+    // Arayüzün güncellenmesini WebSocket olayı halledecek
+  } catch (error) {
+    console.error('Error starting new process:', error);
+    showToast('error', `Error: ${error.message}`);
+  }
+}

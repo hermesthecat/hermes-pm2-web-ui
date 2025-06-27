@@ -8,7 +8,6 @@ Bu dosya, projenin işlevselliğini, güvenliğini ve kullanılabilirliğini art
 
 ## 2. Backend ve Mimari İyileştirmeler
 
-- **Kimlik Doğrulama ve Yetkilendirme:** API uç noktalarını güvence altına almak için basit bir API anahtarı, Basic Auth veya JWT (JSON Web Token) tabanlı bir kimlik doğrulama katmanı ekleyin.
 - **Global Hata Yönetimi:** Kod tekrarını önlemek ve hata yönetimini merkezileştirmek için Express'te tüm hataları yakalayan bir "error handling middleware" oluşturun.
 - **Yapılandırma Yönetimi:** Geliştiricilere yol göstermesi için gerekli ortam değişkenlerini içeren bir `.env.example` dosyası oluşturun.
 

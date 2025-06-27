@@ -12,17 +12,43 @@ import pm2Lib from './pm2Lib';
 import ProjectService from './services/ProjectService';
 import { CreateProjectDto, UpdateProjectDto } from './models/Project';
 import { StartOptions } from 'pm2';
+import { Request, Response, NextFunction } from 'express';
 
 /**
  * Express ve Socket.IO Sunucu Kurulumu
  */
 const app = express();
 const server = createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Gerekirse daha kısıtlayıcı bir yapılandırma yapabilirsiniz
+  }
+});
+
+const API_KEY = process.env.API_KEY;
 
 // Middleware ayarları
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// Kimlik Doğrulama Middleware'i
+const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  if (!API_KEY) {
+    // API Anahtarı ayarlanmamışsa, korumayı devre dışı bırak
+    return next();
+  }
+
+  const providedKey = req.header('X-API-Key');
+  if (providedKey === API_KEY) {
+    next();
+  } else {
+    res.status(401).json({ message: 'Unauthorized: Invalid API Key' });
+  }
+};
+
+// API Rotaları için kimlik doğrulama middleware'ini kullan
+app.use('/processes', authMiddleware);
+app.use('/projects', authMiddleware);
 
 /**
  * PM2 Süreç Yönetimi API Endpoint'leri
@@ -241,6 +267,22 @@ pm2Lib.on('status_change', async (data) => {
   }
 });
 
+// Socket.IO Kimlik Doğrulama Middleware'i
+io.use((socket, next) => {
+  if (!API_KEY) {
+    // API Anahtarı ayarlanmamışsa, korumayı devre dışı bırak
+    return next();
+  }
+
+  const providedKey = socket.handshake.auth.apiKey;
+  if (providedKey === API_KEY) {
+    next();
+  } else {
+    console.warn(`[Socket.IO] Connection rejected from ${socket.id} due to invalid API key.`);
+    next(new Error('Unauthorized: Invalid API Key'));
+  }
+});
+
 /**
  * Yeni istemci bağlantısı kurulduğunda
  * @event connection
@@ -294,4 +336,9 @@ setInterval(async () => {
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`[Server] Listening on :${PORT}`);
+  if (!API_KEY) {
+    console.warn('[SECURITY] API_KEY is not set. The API and WebSocket endpoints are not protected.');
+  } else {
+    console.log('[SECURITY] API and WebSocket endpoints are protected by API Key.');
+  }
 });

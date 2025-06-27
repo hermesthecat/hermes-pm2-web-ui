@@ -192,3 +192,17 @@
 </body>
 
 </html>
+<!-- API Anahtarı Giriş Ekranı -->
+<div id="auth-overlay" class="d-flex justify-content-center align-items-center">
+  <div class="card text-center" style="width: 22rem;">
+    <div class="card-body">
+      <h5 class="card-title">Authentication Required</h5>
+      <p class="card-text">Please enter the API Key to access the dashboard.</p>
+      <div class="mb-3">
+        <input type="password" class="form-control" id="apiKeyInput" placeholder="API Key">
+      </div>
+      <button class="btn btn-primary" id="auth-submit-btn">Submit</button>
+      <div id="auth-error" class="text-danger mt-2 d-none">Invalid API Key.</div>
+    </div>
+  </div>
+</div>

@@ -72,7 +72,16 @@ Uygulama varsayılan olarak `http://localhost:3001` adresinde çalışacaktır.
 Uygulamayı başlatırken ortam değişkenleri (`environment variables`) kullanarak yapılandırabilirsiniz. Proje kök dizinine bir `.env` dosyası oluşturabilir veya bu değişkenleri doğrudan başlangıç komutunuza ekleyebilirsiniz.
 
 - `PORT`: Sunucunun çalışacağı port numarası. (Varsayılan: `3001`)
+- `API_KEY`: **(Önemli)** API ve WebSocket uç noktalarını güvence altına almak için kullanılacak gizli anahtar. Eğer bu değişken ayarlanmazsa, uygulama korumasız çalışacaktır.
 - `SCRIPT_PATH`: PM2 tarafından henüz yönetilmeyen betiklerin bulunduğu dizinin mutlak veya göreceli yolu. `pm2Lib` bu yola bakarak yeni süreçleri başlatmak için gerekli yapılandırmayı oluşturur.
+
+**.env dosyası örneği:**
+
+```bash
+PORT=3001
+API_KEY=gizli-ve-guvenli-anahtariniz
+SCRIPT_PATH=/path/to/my/scripts
+```
 
 ## 🗂️ Proje Yapısı
 
