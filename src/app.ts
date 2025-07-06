@@ -21,7 +21,8 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // Gerekirse daha kısıtlayıcı bir yapılandırma yapabilirsiniz
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || ["http://localhost:3001"],
+    credentials: true
   }
 });
 
@@ -34,8 +35,10 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 // Kimlik Doğrulama Middleware'i
 const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
   if (!API_KEY) {
-    // API Anahtarı ayarlanmamışsa, korumayı devre dışı bırak
-    return next();
+    console.warn('[SECURITY] API_KEY not set, rejecting request');
+    return res.status(401).json({
+      message: 'API_KEY must be configured for security. Please set the API_KEY environment variable.'
+    });
   }
 
   const providedKey = req.header('X-API-Key');
@@ -104,8 +107,23 @@ app.put('/processes/:name/:action', async (req, res, next) => {
 app.post('/processes', async (req, res, next) => {
   const { name, script } = req.body;
 
+  // Temel validasyon
   if (!name || !script) {
     return res.status(400).json({ message: 'Process name and script path are required' });
+  }
+
+  // Process name validation
+  if (typeof name !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(name)) {
+    return res.status(400).json({ message: 'Process name contains invalid characters. Use only alphanumeric characters, underscore, and dash.' });
+  }
+
+  if (name.length > 50) {
+    return res.status(400).json({ message: 'Process name too long (max 50 characters)' });
+  }
+
+  // Script path validation
+  if (typeof script !== 'string' || script.trim().length === 0) {
+    return res.status(400).json({ message: 'Script path must be a non-empty string' });
   }
 
   try {
@@ -269,8 +287,8 @@ pm2Lib.on('status_change', async (data) => {
 // Socket.IO Kimlik Doğrulama Middleware'i
 io.use((socket, next) => {
   if (!API_KEY) {
-    // API Anahtarı ayarlanmamışsa, korumayı devre dışı bırak
-    return next();
+    console.warn('[SECURITY] API_KEY not set, rejecting WebSocket connection');
+    return next(new Error('API_KEY must be configured for security'));
   }
 
   const providedKey = socket.handshake.auth.apiKey;
@@ -282,6 +300,9 @@ io.use((socket, next) => {
   }
 });
 
+// Client handler tracking sistemi
+const clientHandlers = new Map<string, { [key: string]: (...args: any[]) => void }>();
+
 /**
  * Yeni istemci bağlantısı kurulduğunda
  * @event connection
@@ -289,11 +310,18 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log(`[Socket.IO] New client connected: ${socket.id}`);
 
-  // Her bağlantı için ayrı log dinleyici oluştur ve sadece o istemciye gönder
-  const logHandler = (log: any) => {
-    socket.emit('log:out', log);
+  // Her client için handler'ları oluştur
+  const handlers = {
+    log: (log: any) => socket.emit('log:out', log),
+    statusChange: (data: any) => socket.emit('status:change', data)
   };
-  pm2Lib.on('log', logHandler);
+
+  // Client handler'larını sakla
+  clientHandlers.set(socket.id, handlers);
+
+  // Handler'ları PM2 event'lere bağla
+  pm2Lib.on('log', handlers.log);
+  pm2Lib.on('status_change', handlers.statusChange);
 
   /**
    * İstemci bağlantısı koptuğunda
@@ -301,8 +329,14 @@ io.on('connection', (socket) => {
    */
   socket.on('disconnect', () => {
     console.log(`[Socket.IO] Client disconnected: ${socket.id}`);
-    // İstemciye özel log dinleyicisini kaldır
-    pm2Lib.off('log', logHandler);
+
+    // Client handler'larını temizle
+    const clientHandlers_local = clientHandlers.get(socket.id);
+    if (clientHandlers_local) {
+      pm2Lib.off('log', clientHandlers_local.log);
+      pm2Lib.off('status_change', clientHandlers_local.statusChange);
+      clientHandlers.delete(socket.id);
+    }
   });
 });
 

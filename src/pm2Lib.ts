@@ -101,10 +101,45 @@ class Pm2Lib extends EventEmitter {
         }
       });
 
+      // Process exit handler'ları ekle
+      this.setupGracefulShutdown();
+
     } catch (error) {
       console.error('[PM2-Lib] Error launching PM2 bus:', error);
       throw error;
     }
+  }
+
+  /**
+   * PM2 bus bağlantısını temizler
+   * @async
+   */
+  async cleanup() {
+    if (this.bus) {
+      console.log('[PM2-Lib] Cleaning up PM2 bus connection...');
+      this.bus.removeAllListeners();
+      pm2.disconnect();
+      this.bus = undefined;
+      console.log('[PM2-Lib] PM2 bus connection cleaned up.');
+    }
+  }
+
+  /**
+   * Graceful shutdown handler'larını ayarlar
+   * @private
+   */
+  private setupGracefulShutdown() {
+    const shutdown = async () => {
+      console.log('[PM2-Lib] Received shutdown signal, cleaning up...');
+      await this.cleanup();
+      process.exit(0);
+    };
+
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
+    process.on('beforeExit', async () => {
+      await this.cleanup();
+    });
   }
 
   /**
@@ -129,9 +164,10 @@ class Pm2Lib extends EventEmitter {
    * @returns {Promise<Proc>} Başlatılan süreç bilgisi
    */
   async startProcess(processNameOrOptions: string | StartOptions): Promise<Proc> {
+    const processName = typeof processNameOrOptions === 'string' ? processNameOrOptions : processNameOrOptions.name;
+
     try {
       if (typeof processNameOrOptions === 'string') {
-        const processName = processNameOrOptions;
         const processes = await this.getProcesses();
         const existingProcess = processes.find(p => p.name === processName);
 
@@ -149,8 +185,18 @@ class Pm2Lib extends EventEmitter {
         return await promisify<StartOptions, Proc>(pm2.start).call(pm2, options);
       }
     } catch (error) {
-      const target = typeof processNameOrOptions === 'string' ? processNameOrOptions : processNameOrOptions.name;
-      console.error(`Error starting process ${target}:`, error);
+      console.error(`Error starting process ${processName}:`, error);
+
+      // Hata durumunda cleanup yap
+      if (processName) {
+        try {
+          console.log(`[PM2-Lib] Attempting cleanup for failed process: ${processName}`);
+          await this.stopProcess(processName);
+        } catch (cleanupError) {
+          console.warn(`[PM2-Lib] Cleanup failed for ${processName}:`, cleanupError);
+        }
+      }
+
       throw error;
     }
   }

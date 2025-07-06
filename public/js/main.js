@@ -56,6 +56,8 @@ let activeChart = null;       // Aktif grafik nesnesini tutar
 const MAX_DATA_POINTS = 20;   // Grafikte gösterilecek maksimum veri noktası sayısı
 let terminal = null;          // xterm.js terminal nesnesi
 let fitAddon = null;          // xterm.js fit eklentisi
+const MAX_TERMINAL_LINES = 1000; // Maksimum terminal satır sayısı
+let terminalLineCount = 0;    // Mevcut terminal satır sayısı
 
 /**
  * Kimlik Doğrulama Fonksiyonları
@@ -85,12 +87,35 @@ function initializeApp() {
   });
 
   // Socket bağlantı hatasını dinle
+  let reconnectAttempts = 0;
+  const maxReconnectAttempts = 5;
+
   socket.on('connect_error', (err) => {
     console.error('Socket connection error:', err.message);
+
     // Anahtar yanlışsa, girişe geri dön
     if (err.message.includes('Unauthorized')) {
       logout();
+      return;
     }
+
+    // Reconnection logic
+    reconnectAttempts++;
+    if (reconnectAttempts <= maxReconnectAttempts) {
+      const delay = 2000 * reconnectAttempts;
+      console.log(`Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts} in ${delay}ms`);
+      setTimeout(() => {
+        socket.connect();
+      }, delay);
+    } else {
+      showToast('error', 'Connection lost. Please refresh the page.');
+    }
+  });
+
+  // Reset reconnection attempts on successful connection
+  socket.on('connect', () => {
+    reconnectAttempts = 0;
+    console.log('Socket connected successfully');
   });
 
   // Olay dinleyicilerini ayarla
@@ -400,6 +425,14 @@ function appendLogToTerminal(log) {
 
   const timestamp = `\x1b[90m${new Date(log.at).toLocaleTimeString()}\x1b[0m`;
   terminal.writeln(`${timestamp} [${procColor}${procName}\x1b[0m]: ${logMessage}`);
+
+  // Terminal buffer overflow kontrolü
+  terminalLineCount++;
+  if (terminalLineCount > MAX_TERMINAL_LINES) {
+    terminal.clear();
+    terminal.writeln('\x1b[33m[SYSTEM] Terminal buffer cleared to prevent memory overflow\x1b[0m');
+    terminalLineCount = 1;
+  }
 }
 
 /**
@@ -623,6 +656,7 @@ showAllLogsBtn.addEventListener('click', () => showLogs());
 clearConsoleBtn.addEventListener('click', () => {
   if (terminal) {
     terminal.clear();
+    terminalLineCount = 0; // Reset line count when manually clearing
   }
 });
 newProjectBtn.addEventListener('click', newProject);

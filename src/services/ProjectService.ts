@@ -27,6 +27,9 @@ class ProjectService {
   /** Dosyaya yazma gecikmesi (milisaniye) */
   private readonly SAVE_DELAY = 2000; // 2 saniye
 
+  /** Dosyaya yazma işlemi için queue */
+  private saveQueue = Promise.resolve();
+
   /**
    * ProjectService sınıfının yapıcı metodu
    * @constructor
@@ -54,6 +57,16 @@ class ProjectService {
         const projects = JSON.parse(data) as Project[];
         this.projects = new Map(projects.map(p => [p.id, p]));
       } catch (error) {
+        if (error instanceof SyntaxError) {
+          console.warn('[ProjectService] Invalid JSON in projects.json, creating backup and starting fresh');
+          try {
+            const backupFile = `${this.dataFile}.backup-${Date.now()}`;
+            await fs.copyFile(this.dataFile, backupFile);
+            console.log(`[ProjectService] Backup created at ${backupFile}`);
+          } catch (backupError) {
+            console.error('[ProjectService] Failed to create backup:', backupError);
+          }
+        }
         // Dosya yoksa veya bozuksa yeni oluştur
         await this.saveToFile();
       }
@@ -85,14 +98,13 @@ class ProjectService {
    * @private
    */
   private scheduleSave() {
-    // Mevcut bir zamanlayıcı varsa temizle
-    if (this.saveTimeout) {
-      clearTimeout(this.saveTimeout);
-    }
-    // Yeni bir zamanlayıcı ayarla
-    this.saveTimeout = setTimeout(() => {
-      this.saveToFile();
-    }, this.SAVE_DELAY);
+    // Queue'ya save işlemini ekle
+    this.saveQueue = this.saveQueue.then(async () => {
+      await new Promise(resolve => setTimeout(resolve, this.SAVE_DELAY));
+      return this.saveToFile();
+    }).catch(error => {
+      console.error('[ProjectService] Save error:', error);
+    });
   }
 
   /**
