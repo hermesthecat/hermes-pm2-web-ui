@@ -125,6 +125,11 @@ function initializeApp() {
     processTable.style.opacity = '1';
   });
 
+  // Optimized monitoring - delta ve full updates
+  socket.on('processes:monitoring:delta', handleMonitoringDelta);
+  socket.on('processes:monitoring:full', handleMonitoringFull);
+  
+  // Backward compatibility - eski monitoring eventi
   socket.on('processes:monitoring', handleMonitoringUpdate);
 
   socket.on('log:out', (log) => {
@@ -681,7 +686,11 @@ socket.on('processes:updated', (updatedProcesses) => {
   processTable.style.opacity = '1';
 });
 
-// Sunucudan gelen izleme verilerini dinle
+// Sunucudan gelen izleme verilerini dinle - Optimized Delta Updates
+socket.on('processes:monitoring:delta', handleMonitoringDelta);
+socket.on('processes:monitoring:full', handleMonitoringFull);
+
+// Backward compatibility
 socket.on('processes:monitoring', handleMonitoringUpdate);
 
 // Tema değiştirme butonu
@@ -786,36 +795,120 @@ function showResourceGraph(processName) {
  * Gelen izleme verilerini işler ve saklar
  * @param {Array} data - Sunucudan gelen izleme verileri dizisi
  */
-function handleMonitoringUpdate(data) {
+/**
+ * Optimized Delta Monitoring Handler
+ * Sadece değişen process'lerin monitoring verilerini handle eder
+ */
+function handleMonitoringDelta(data) {
   const now = new Date();
   const timestamp = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+  
+  console.log(`[Monitoring] Delta update: ${data.length} processes changed`);
 
   data.forEach(p => {
-    if (!monitoringData.has(p.name)) {
-      monitoringData.set(p.name, { labels: [], cpu: [], memory: [] });
-    }
-    const processData = monitoringData.get(p.name);
-
-    // Veri ekle
-    processData.labels.push(timestamp);
-    processData.cpu.push(p.monit.cpu);
-    processData.memory.push((p.monit.memory / (1024 * 1024)).toFixed(2));
-
-    // Maksimum veri noktasını aşarsa en eski veriyi sil
-    if (processData.labels.length > MAX_DATA_POINTS) {
-      processData.labels.shift();
-      processData.cpu.shift();
-      processData.memory.shift();
-    }
-
-    // Grafik açıksa ve bu sürece aitse, grafiği güncelle
-    if (activeChart && chartModalTitle.textContent.includes(p.name)) {
-      activeChart.data.labels = processData.labels;
-      activeChart.data.datasets[0].data = processData.cpu;
-      activeChart.data.datasets[1].data = processData.memory;
-      activeChart.update();
-    }
+    updateProcessMonitoringData(p, timestamp);
+    
+    // Process table'daki status ve metrics'i güncelle
+    updateProcessTableRow(p);
   });
+}
+
+/**
+ * Full Monitoring Handler
+ * Tüm process'lerin monitoring verilerini handle eder (sync için)
+ */
+function handleMonitoringFull(data) {
+  const now = new Date();
+  const timestamp = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+  
+  console.log(`[Monitoring] Full sync: ${data.length} processes`);
+
+  data.forEach(p => {
+    updateProcessMonitoringData(p, timestamp);
+    updateProcessTableRow(p);
+  });
+}
+
+/**
+ * Backward compatibility - eski monitoring eventi
+ */
+function handleMonitoringUpdate(data) {
+  handleMonitoringFull(data);
+}
+
+/**
+ * Process monitoring verisini günceller
+ */
+function updateProcessMonitoringData(p, timestamp) {
+  if (!monitoringData.has(p.name)) {
+    monitoringData.set(p.name, { labels: [], cpu: [], memory: [] });
+  }
+  const processData = monitoringData.get(p.name);
+
+  // Veri ekle
+  processData.labels.push(timestamp);
+  processData.cpu.push(p.monit.cpu);
+  processData.memory.push((p.monit.memory / (1024 * 1024)).toFixed(2));
+
+  // Maksimum veri noktasını aşarsa en eski veriyi sil
+  if (processData.labels.length > MAX_DATA_POINTS) {
+    processData.labels.shift();
+    processData.cpu.shift();
+    processData.memory.shift();
+  }
+
+  // Grafik açıksa ve bu sürece aitse, grafiği güncelle
+  if (activeChart && chartModalTitle.textContent.includes(p.name)) {
+    activeChart.data.labels = processData.labels;
+    activeChart.data.datasets[0].data = processData.cpu;
+    activeChart.data.datasets[1].data = processData.memory;
+    activeChart.update();
+  }
+}
+
+/**
+ * Process table'daki bir satırı günceller
+ */
+function updateProcessTableRow(p) {
+  const row = document.querySelector(`tr[data-process-name="${p.name}"]`);
+  if (row) {
+    // CPU güncellemesi
+    const cpuCell = row.querySelector('.cpu-usage');
+    if (cpuCell) {
+      cpuCell.textContent = `${p.monit.cpu}%`;
+    }
+    
+    // Memory güncellemesi
+    const memoryCell = row.querySelector('.memory-usage');
+    if (memoryCell) {
+      const memoryMB = (p.monit.memory / (1024 * 1024)).toFixed(1);
+      memoryCell.textContent = `${memoryMB} MB`;
+    }
+    
+    // Status güncellemesi (varsa)
+    if (p.status) {
+      const statusCell = row.querySelector('.status-badge');
+      if (statusCell) {
+        // Status class'larını güncelle
+        statusCell.className = `badge status-badge bg-${getStatusColor(p.status)}`;
+        statusCell.textContent = p.status;
+      }
+    }
+  }
+}
+
+/**
+ * Status'a göre renk döndürür
+ */
+function getStatusColor(status) {
+  switch (status) {
+    case 'online': return 'success';
+    case 'stopped': return 'secondary';
+    case 'stopping': return 'warning';
+    case 'errored': return 'danger';
+    case 'launching': return 'info';
+    default: return 'secondary';
+  }
 }
 
 // Grafik modalı kapandığında grafiği yok et

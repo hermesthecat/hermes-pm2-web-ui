@@ -341,23 +341,71 @@ io.on('connection', (socket) => {
 });
 
 /**
- * Periyodik Kaynak İzleme
- * ------------------------- */
+ * Periyodik Kaynak İzleme - Optimized Delta Updates
+ * -------------------------------------------------- */
 const MONITORING_INTERVAL = 3000; // 3 saniye
+
+// Önceki monitoring değerlerini sakla
+let lastMonitoringData = new Map<string, {cpu: number, memory: number, status: string}>();
 
 setInterval(async () => {
   try {
     const processes = await pm2Lib.getProcesses();
-    // Sadece gerekli verileri göndererek ağ trafiğini azalt
-    const monitoringData = processes.map(p => ({
-      name: p.name,
-      pm_id: p.pm_id,
-      monit: {
-        cpu: p.monit?.cpu || 0,
+    const changedData: any[] = [];
+    const currentData = new Map<string, {cpu: number, memory: number, status: string}>();
+    
+    processes.forEach(p => {
+      const processKey = p.name || `${p.pm_id}`;
+      const current = { 
+        cpu: Math.round((p.monit?.cpu || 0) * 100) / 100, // 2 decimal precision
         memory: p.monit?.memory || 0,
-      },
-    }));
-    io.emit('processes:monitoring', monitoringData);
+        status: p.pm2_env?.status || 'unknown'
+      };
+      
+      const last = lastMonitoringData.get(processKey);
+      
+      // Değişiklik kontrolü - CPU, memory veya status değişmişse gönder
+      if (!last || 
+          Math.abs(last.cpu - current.cpu) > 0.1 || // CPU %0.1+ fark
+          last.memory !== current.memory ||
+          last.status !== current.status) {
+        
+        changedData.push({
+          name: p.name,
+          pm_id: p.pm_id,
+          monit: {
+            cpu: current.cpu,
+            memory: current.memory,
+          },
+          status: current.status
+        });
+      }
+      
+      currentData.set(processKey, current);
+    });
+    
+    // Sadece değişiklik varsa delta gönder
+    if (changedData.length > 0) {
+      console.log(`[Monitoring] Broadcasting ${changedData.length} changed processes`);
+      io.emit('processes:monitoring:delta', changedData);
+    }
+    
+    // Full update her 30 saniyede bir (sync için)
+    if (Date.now() % 30000 < MONITORING_INTERVAL) {
+      const allData = processes.map(p => ({
+        name: p.name,
+        pm_id: p.pm_id,
+        monit: {
+          cpu: Math.round((p.monit?.cpu || 0) * 100) / 100,
+          memory: p.monit?.memory || 0,
+        },
+        status: p.pm2_env?.status || 'unknown'
+      }));
+      io.emit('processes:monitoring:full', allData);
+      console.log('[Monitoring] Full sync broadcast sent');
+    }
+    
+    lastMonitoringData = currentData;
   } catch (error) {
     console.error('[Monitoring] Failed to get and broadcast process monitoring data:', error);
   }
